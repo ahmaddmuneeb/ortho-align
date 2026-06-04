@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 import { fileCategoryLabel } from '../../lib/fileCategories';
+import { MAX, sanitizeText, sanitizeUrl } from '../../lib/sanitize';
 import { patientInputClass } from '../PatientForm';
+import { Alert, Button } from '../ui';
+import { SkeletonText } from '../ui/Skeleton';
 import type { CaseFile, ProductionUrl } from '../../types/case';
 
 interface ProductionSectionProps {
@@ -23,6 +26,7 @@ export function ProductionSection({
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
+  const [savingUrl, setSavingUrl] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -58,16 +62,22 @@ export function ProductionSection({
   const addUrl = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim()) return;
+    setSavingUrl(true);
+    setError(null);
     try {
       await api.post(`/api/cases/${caseId}/production/urls`, {
-        url: url.trim(),
-        description: description.trim() || undefined,
+        url: sanitizeUrl(url),
+        description:
+          sanitizeText(description, { maxLength: MAX.productionDescription }) ||
+          undefined,
       });
       setUrl('');
       setDescription('');
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to add URL');
+    } finally {
+      setSavingUrl(false);
     }
   };
 
@@ -82,7 +92,9 @@ export function ProductionSection({
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-ink">Production deliverables</h2>
-        <p className="mt-4 text-sm text-muted">Loading…</p>
+        <div className="mt-4">
+          <SkeletonText lines={2} />
+        </div>
       </section>
     );
   }
@@ -105,9 +117,9 @@ export function ProductionSection({
       </p>
 
       {error && (
-        <p className="mt-2 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-2">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {productionFiles.length > 0 && (
@@ -180,7 +192,9 @@ export function ProductionSection({
       )}
 
       {!hasContent && !canAddUrl && (
-        <p className="mt-4 text-sm text-muted">No production deliverables yet.</p>
+        <div className="mt-4">
+          <Alert variant="info">No production deliverables yet.</Alert>
+        </div>
       )}
 
       {canAddUrl && (
@@ -204,12 +218,9 @@ export function ProductionSection({
               className={patientInputClass}
             />
           </label>
-          <button
-            type="submit"
-            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-          >
+          <Button type="submit" loading={savingUrl} loadingText="Adding…">
             Add URL
-          </button>
+          </Button>
         </form>
       )}
 

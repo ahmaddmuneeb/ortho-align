@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/api';
+import { Alert, SkeletonDashboard } from '../components/ui';
 import type { DashboardStats } from '../types/auth';
 
 export function DashboardPage() {
@@ -27,15 +28,11 @@ export function DashboardPage() {
   }, []);
 
   if (loading) {
-    return <p className="text-muted">Loading dashboard…</p>;
+    return <SkeletonDashboard />;
   }
 
   if (error) {
-    return (
-      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-        {error}
-      </p>
-    );
+    return <Alert variant="error">{error}</Alert>;
   }
 
   if (!stats) return null;

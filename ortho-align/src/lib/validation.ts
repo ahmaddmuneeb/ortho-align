@@ -1,3 +1,31 @@
+const HTML_TAG = /<[^>]*>/g;
+const SCRIPT_BLOCK = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
+
+/** Strip HTML/script from user-provided strings */
+export const stripHtml = (value: string): string =>
+  value
+    .replace(SCRIPT_BLOCK, '')
+    .replace(HTML_TAG, '')
+    .replace(/javascript:/gi, '')
+    .trim();
+
+/** Trim, strip HTML, enforce max length (returns null for empty optional fields) */
+export const clampString = (
+  value: unknown,
+  maxLength: number,
+  { required = false, multiline = false }: { required?: boolean; multiline?: boolean } = {},
+): string | null => {
+  if (value == null || typeof value !== 'string') {
+    return required ? '' : null;
+  }
+  let cleaned = stripHtml(value);
+  cleaned = multiline
+    ? cleaned.replace(/[^\S\n]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+    : cleaned.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return required ? '' : null;
+  return cleaned.length > maxLength ? cleaned.slice(0, maxLength) : cleaned;
+};
+
 export interface PasswordValidationResult {
   isValid: boolean;
   errors: string[];

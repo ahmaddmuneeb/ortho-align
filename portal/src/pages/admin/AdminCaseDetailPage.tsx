@@ -11,7 +11,9 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { patientInputClass } from '../../components/PatientForm';
 import { CASE_STATUS_LABELS } from '../../lib/caseStatus';
 import { api, ApiError } from '../../lib/api';
+import { MAX, sanitizeText } from '../../lib/sanitize';
 import { toast } from '../../lib/toast';
+import { Alert, Button, SkeletonCaseDetail } from '../../components/ui';
 import type { AdminUser, CaseRecord, Prescription } from '../../types/case';
 
 export function AdminCaseDetailPage() {
@@ -125,7 +127,7 @@ export function AdminCaseDetailPage() {
     setError(null);
     try {
       const data = await api.patch<{ case: CaseRecord }>(`/api/cases/${id}/notes`, {
-        notes,
+        notes: sanitizeText(notes, { maxLength: MAX.notes, multiline: true }),
       });
       setCaseRecord(data.case);
       toast.success('Notes saved');
@@ -138,13 +140,9 @@ export function AdminCaseDetailPage() {
     }
   };
 
-  if (loading) return <p className="text-muted">Loading…</p>;
+  if (loading) return <SkeletonCaseDetail sections={6} />;
   if (!caseRecord) {
-    return (
-      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-        {error ?? 'Case not found'}
-      </p>
-    );
+    return <Alert variant="error">{error ?? 'Case not found'}</Alert>;
   }
 
   return (
@@ -163,11 +161,7 @@ export function AdminCaseDetailPage() {
         <StatusBadge status={caseRecord.status} />
       </div>
 
-      {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
 
       {caseRecord.patientId && caseRecord.patient?.name && (
         <PatientPortalAccessPanel
@@ -237,14 +231,15 @@ export function AdminCaseDetailPage() {
           className={`${patientInputClass} mt-4`}
           placeholder="Internal or case notes"
         />
-        <button
+        <Button
           type="button"
-          disabled={savingNotes}
           onClick={saveNotes}
-          className="mt-3 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          loading={savingNotes}
+          loadingText="Saving…"
+          className="mt-3"
         >
-          {savingNotes ? 'Saving…' : 'Save notes'}
-        </button>
+          Save notes
+        </Button>
       </section>
 
       <AdminWorkflowPanel caseRecord={caseRecord} onUpdate={setCaseRecord} />
@@ -288,24 +283,25 @@ export function AdminCaseDetailPage() {
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
           {caseRecord.status === 'PENDING_APPROVAL' && (
-            <button
+            <Button
               type="button"
-              disabled={acting}
+              loading={acting}
+              loadingText="Approving…"
               onClick={approvePayment}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
               Approve payment & start design
-            </button>
+            </Button>
           )}
           {caseRecord.status === 'OPENED' && (
-            <button
+            <Button
               type="button"
-              disabled={acting}
+              variant="secondary"
+              loading={acting}
+              loadingText="Assigning…"
               onClick={assignCase}
-              className="rounded-md border border-slate-200 px-4 py-2 text-sm hover:border-brand-500 disabled:opacity-60"
             >
               Assign (opened → assigned)
-            </button>
+            </Button>
           )}
         </div>
       </section>

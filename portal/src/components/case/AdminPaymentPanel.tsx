@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 import { toast } from '../../lib/toast';
+import { Alert, Button } from '../ui';
+import { SkeletonText } from '../ui/Skeleton';
 import type { CasePayment, PaymentStatus } from '../../types/case';
 
 interface AdminPaymentPanelProps {
@@ -65,19 +67,19 @@ export function AdminPaymentPanel({ caseId }: AdminPaymentPanelProps) {
   };
 
   if (loading) {
-    return <p className="text-sm text-muted">Loading payments…</p>;
+    return <SkeletonText lines={2} />;
   }
 
   if (payments.length === 0) {
-    return <p className="text-sm text-muted">No payment records for this case.</p>;
+    return <Alert variant="info">No payment records for this case.</Alert>;
   }
 
   return (
     <div>
       {error && (
-        <p className="mb-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mb-3">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
       <ul className="space-y-2">
         {payments.map((p) => (
@@ -96,22 +98,25 @@ export function AdminPaymentPanel({ caseId }: AdminPaymentPanelProps) {
             </div>
             {p.status === 'PENDING' && (
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
-                  disabled={actingId === p.id}
+                  loading={actingId === p.id}
+                  loadingText="…"
                   onClick={() => completePayment(p.id)}
-                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                  className="!bg-emerald-600 px-3 py-1.5 text-xs hover:!bg-emerald-700"
                 >
                   Confirm
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  disabled={actingId === p.id}
+                  variant="danger"
+                  loading={actingId === p.id}
+                  loadingText="…"
                   onClick={() => failPayment(p.id)}
-                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
+                  className="px-3 py-1.5 text-xs"
                 >
                   Fail
-                </button>
+                </Button>
               </div>
             )}
           </li>

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import {
   PatientForm,
   patientToFormValues,
 } from '../components/PatientForm';
 import { api, ApiError } from '../lib/api';
+import { Alert } from '../components/ui';
+import { SkeletonCaseDetail } from '../components/ui/Skeleton';
 import { formatApiError } from '../lib/formErrors';
 import { formatDisplayDate } from '../lib/patientDates';
 import type { Gender } from '../types/auth';
@@ -61,15 +64,13 @@ export function PatientDetailPage() {
   };
 
   if (loading) {
-    return <p className="text-muted">Loading patient…</p>;
+    return <SkeletonCaseDetail sections={2} />;
   }
 
   if (loadError) {
     return (
       <div>
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {loadError}
-        </p>
+        <Alert variant="error">{loadError}</Alert>
         <Link
           to="/patients"
           className="mt-4 inline-block text-sm font-medium text-brand-700 hover:underline"
@@ -104,8 +105,9 @@ export function PatientDetailPage() {
               setApiError(null);
               setEditing(true);
             }}
-            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
+            className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
           >
+            <Pencil className="h-4 w-4" />
             Edit patient
           </button>
         )}

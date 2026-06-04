@@ -1,7 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../components/Layout';
+import { Alert, Button } from '../components/ui';
 import { ApiError } from '../lib/api';
+import {
+  MAX,
+  sanitizeEmail,
+  sanitizePassword,
+  sanitizePhone,
+  sanitizeText,
+  sanitizeUrl,
+} from '../lib/sanitize';
 import { getRoleHomePath } from '../lib/routes';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { register as registerThunk } from '../store/slices/authSlice';
@@ -34,16 +43,20 @@ export function RegisterPage() {
     try {
       await dispatch(
         registerThunk({
-          email: String(form.get('email')),
-          password: String(form.get('password')),
-          name: String(form.get('name')),
+          email: sanitizeEmail(String(form.get('email'))),
+          password: sanitizePassword(String(form.get('password'))),
+          name: sanitizeText(String(form.get('name')), { maxLength: MAX.name }),
           role: 'CLIENT',
           gender: form.get('gender') as Gender,
-          region: String(form.get('region')),
-          phone: String(form.get('phone')),
-          website: String(form.get('website') || '') || undefined,
-          businessAddress: String(form.get('businessAddress')),
-          hearAboutUs: String(form.get('hearAboutUs')),
+          region: sanitizeText(String(form.get('region')), { maxLength: MAX.region }),
+          phone: sanitizePhone(String(form.get('phone'))),
+          website: sanitizeUrl(String(form.get('website') || '')) || undefined,
+          businessAddress: sanitizeText(String(form.get('businessAddress')), {
+            maxLength: MAX.address,
+          }),
+          hearAboutUs: sanitizeText(String(form.get('hearAboutUs')), {
+            maxLength: MAX.hearAboutUs,
+          }),
         }),
       ).unwrap();
       navigate('/login', {
@@ -77,14 +90,16 @@ export function RegisterPage() {
         <p className="mt-1 text-sm text-muted">
           OrthoAlign PAYG · CLIENT registration (doctors)
         </p>
-        <p className="mt-2 rounded-md bg-brand-50 px-3 py-2 text-xs text-brand-800">
-          Patient portal logins are created by your clinic administrator, not on this page.
-        </p>
+        <div className="mt-2">
+          <Alert variant="info">
+            Patient portal logins are created by your clinic administrator, not on this page.
+          </Alert>
+        </div>
 
         {error && (
-          <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-            {error}
-          </p>
+          <div className="mt-4">
+            <Alert variant="error">{error}</Alert>
+          </div>
         )}
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -142,13 +157,14 @@ export function RegisterPage() {
           </label>
         </div>
 
-        <button
+        <Button
           type="submit"
-          disabled={submitting}
-          className="mt-6 w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          loading={submitting}
+          loadingText="Creating account…"
+          className="mt-6 w-full py-2.5"
         >
-          {submitting ? 'Creating account…' : 'Create account'}
-        </button>
+          Create account
+        </Button>
 
         <p className="mt-4 text-center text-sm text-muted">
           Already registered?{' '}

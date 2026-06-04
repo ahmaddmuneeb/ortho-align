@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Search, UserPlus } from 'lucide-react';
+import { Pagination } from '../../components/Pagination';
+import { Alert } from '../../components/ui';
+import { SkeletonTable } from '../../components/ui/Skeleton';
 import { patientInputClass } from '../../components/PatientForm';
 import { api, ApiError } from '../../lib/api';
+import { sanitizeSearchQuery } from '../../lib/sanitize';
+import { usePagination } from '../../lib/usePagination';
 import type { AdminUser } from '../../types/case';
 import type { UserRole } from '../../types/auth';
 
@@ -42,7 +48,7 @@ export function AdminUsersPage() {
   }, [roleFilter]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = sanitizeSearchQuery(search).toLowerCase();
     if (!q) return users;
     return users.filter(
       (u) =>
@@ -50,6 +56,15 @@ export function AdminUsersPage() {
         u.email.toLowerCase().includes(q),
     );
   }, [users, search]);
+
+  const {
+    page,
+    pageSize,
+    totalItems,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(filtered, [search, roleFilter]);
 
   return (
     <div>
@@ -60,8 +75,9 @@ export function AdminUsersPage() {
         </div>
         <Link
           to="/admin/users/new"
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
+          <UserPlus className="h-4 w-4" />
           Create employee
         </Link>
       </div>
@@ -69,20 +85,23 @@ export function AdminUsersPage() {
       <div className="mt-6 flex flex-wrap gap-3">
         <label className="flex min-w-[10rem] flex-1 flex-col text-sm font-medium text-slate-700 sm:max-w-xs">
           Search
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Name or email…"
-            className={patientInputClass}
-          />
+          <div className="relative mt-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Name or email…"
+              className={`${patientInputClass} pl-9`}
+            />
+          </div>
         </label>
         <label className="flex min-w-[10rem] flex-col text-sm font-medium text-slate-700 sm:max-w-[12rem]">
           Role
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as '' | UserRole)}
-            className={patientInputClass}
+            className={`${patientInputClass} mt-1`}
           >
             {ROLES.map((r) => (
               <option key={r.value || 'all'} value={r.value}>
@@ -93,19 +112,21 @@ export function AdminUsersPage() {
         </label>
       </div>
 
-      {loading && <p className="mt-6 text-muted">Loading…</p>}
+      {loading && <SkeletonTable rows={8} cols={4} className="mt-6" />}
       {error && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-6">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {!loading && !error && (
         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {filtered.length === 0 ? (
-            <p className="px-6 py-8 text-center text-sm text-muted">
-              {users.length === 0 ? 'No users.' : 'No users match your search.'}
-            </p>
+            <div className="px-6 py-6">
+              <Alert variant="info">
+                {users.length === 0 ? 'No users.' : 'No users match your search.'}
+              </Alert>
+            </div>
           ) : (
             <>
               <table className="hidden w-full text-left text-sm md:table">
@@ -118,7 +139,7 @@ export function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map((u) => (
+                  {paginatedItems.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-50/80">
                       <td className="px-4 py-3 font-medium">
                         <Link
@@ -136,7 +157,7 @@ export function AdminUsersPage() {
                 </tbody>
               </table>
               <ul className="divide-y divide-slate-100 md:hidden">
-                {filtered.map((u) => (
+                {paginatedItems.map((u) => (
                   <li key={u.id} className="px-4 py-3">
                     <Link
                       to={`/admin/users/${u.id}`}
@@ -151,6 +172,13 @@ export function AdminUsersPage() {
                   </li>
                 ))}
               </ul>
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+              />
             </>
           )}
         </div>

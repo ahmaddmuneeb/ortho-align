@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CaseForm } from '../../components/CaseForm';
+import { Alert } from '../../components/ui';
+import { SkeletonForm } from '../../components/ui/Skeleton';
 import { api, ApiError } from '../../lib/api';
 import { toast } from '../../lib/toast';
 import type { CaseRecord } from '../../types/case';
@@ -62,19 +64,28 @@ export function AdminCaseNewPage() {
         Create a case for any patient (starts in pending payment)
       </p>
 
-      {loading && <p className="mt-6 text-muted">Loading patients…</p>}
+      {loading && (
+        <div className="mt-6 max-w-lg">
+          <SkeletonForm fields={2} />
+        </div>
+      )}
       {error && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-6">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {!loading && !error && patients.length === 0 && (
         <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-          <p className="text-sm text-muted">No patients in the system yet.</p>
-          <p className="mt-2 text-xs text-muted">
-            Clients can add patients from their portal, or you can create one via the API.
-          </p>
+          <Alert variant="warning" title="No patients in the system">
+            Add a patient before creating a case.
+          </Alert>
+          <Link
+            to="/admin/patients/new"
+            className="mt-4 inline-block text-sm font-medium text-brand-700 hover:underline"
+          >
+            Add a patient
+          </Link>
         </div>
       )}
 

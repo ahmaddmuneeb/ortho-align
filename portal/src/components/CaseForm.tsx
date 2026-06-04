@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
+import { MAX, sanitizeText } from '../lib/sanitize';
 import { patientInputClass } from './PatientForm';
+import { Alert, Button } from './ui';
 import type { Patient } from '../types/patient';
 
 interface CaseFormProps {
@@ -32,7 +34,10 @@ export function CaseForm({
     setLocalError(null);
     setSubmitting(true);
     try {
-      await onSubmit(patientId, notes.trim());
+      await onSubmit(
+        patientId,
+        sanitizeText(notes, { maxLength: MAX.notes, multiline: true }),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -41,9 +46,9 @@ export function CaseForm({
   return (
     <form onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       {(apiError || localError) && (
-        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-          {apiError || localError}
-        </p>
+        <div className="mb-4">
+          <Alert variant="error">{apiError || localError}</Alert>
+        </div>
       )}
 
       <label className="block text-sm font-medium text-slate-700">
@@ -75,20 +80,12 @@ export function CaseForm({
       </label>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-        >
-          {submitting ? 'Creating…' : 'Create case'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-brand-500"
-        >
+        <Button type="submit" loading={submitting} loadingText="Creating…">
+          Create case
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

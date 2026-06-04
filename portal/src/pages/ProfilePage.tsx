@@ -1,11 +1,32 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { patientInputClass } from '../components/PatientForm';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  Building2,
+  Globe,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Save,
+  User,
+} from 'lucide-react';
+import { useAppDispatch } from '../store/hooks';
 import { setUser } from '../store/slices/authSlice';
 import { api, ApiError } from '../lib/api';
+import {
+  MAX,
+  sanitizePhone,
+  sanitizeText,
+  sanitizeUrl,
+} from '../lib/sanitize';
 import { toast } from '../lib/toast';
+import { Alert, Button, SkeletonProfilePage } from '../components/ui';
 import type { AuthUser, Gender } from '../types/auth';
 import type { ProfileMePatch, UserProfile } from '../types/user';
+
+const inputClass =
+  'mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500';
+
+const cardClass = 'rounded-xl border border-slate-200 bg-white shadow-sm';
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'MALE', label: 'Male' },
@@ -29,14 +50,14 @@ function profileToAuthUser(profile: UserProfile): AuthUser {
   };
 }
 
-function roleLabel(role: AuthUser['role']): string {
+function roleBadgeLabel(role: AuthUser['role']): string {
   switch (role) {
     case 'CLIENT':
-      return 'Client (Doctor)';
-    case 'EMPLOYEE':
-      return 'Employee';
+      return 'Client';
     case 'ADMIN':
-      return 'Administrator';
+      return 'Admin';
+    case 'EMPLOYEE':
+      return 'Staff';
     case 'PATIENT':
       return 'Patient';
     default:
@@ -44,8 +65,91 @@ function roleLabel(role: AuthUser['role']): string {
   }
 }
 
+function roleBadgeClass(role: AuthUser['role']): string {
+  switch (role) {
+    case 'CLIENT':
+      return 'bg-sky-100 text-sky-800';
+    case 'ADMIN':
+      return 'bg-violet-100 text-violet-800';
+    case 'EMPLOYEE':
+      return 'bg-emerald-100 text-emerald-800';
+    case 'PATIENT':
+      return 'bg-brand-100 text-brand-800';
+    default:
+      return 'bg-slate-100 text-slate-700';
+  }
+}
+
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.trim().slice(0, 2).toUpperCase() || '?';
+}
+
+function formatMemberDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function OverviewRow({
+  icon,
+  label,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
+        <div className="mt-0.5 text-sm text-ink">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function FormSection({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-t border-slate-100 pt-6 first:border-t-0 first:pt-0">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+          {icon}
+        </div>
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function ReadOnlyChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+      <p className="text-xs font-medium text-muted">{label}</p>
+      <p className="mt-0.5 text-sm text-ink">{value}</p>
+    </div>
+  );
+}
+
 export function ProfilePage() {
-  const authUser = useAppSelector((s) => s.auth.user);
   const dispatch = useAppDispatch();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [editing, setEditing] = useState(false);
@@ -94,11 +198,13 @@ export function ProfilePage() {
     setSaving(true);
     setError(null);
     try {
-      const body: ProfileMePatch = { name: name.trim() };
+      const body: ProfileMePatch = {
+        name: sanitizeText(name, { maxLength: MAX.name }),
+      };
       if (profile.role === 'CLIENT') {
-        body.phone = phone.trim();
-        body.website = website.trim() || undefined;
-        body.businessAddress = businessAddress.trim();
+        body.phone = sanitizePhone(phone);
+        body.website = sanitizeUrl(website) || undefined;
+        body.businessAddress = sanitizeText(businessAddress, { maxLength: MAX.address });
       }
       const data = await api.patch<{ user: UserProfile }>('/api/users/me', body);
       setProfile(data.user);
@@ -115,16 +221,18 @@ export function ProfilePage() {
     }
   };
 
+  const handleCancel = () => {
+    if (profile) resetForm(profile);
+    setEditing(false);
+    setError(null);
+  };
+
   if (loading) {
-    return <p className="text-muted">Loading profile…</p>;
+    return <SkeletonProfilePage />;
   }
 
   if (error && !profile) {
-    return (
-      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-        {error}
-      </p>
-    );
+    return <Alert variant="error">{error}</Alert>;
   }
 
   if (!profile) {
@@ -132,190 +240,251 @@ export function ProfilePage() {
   }
 
   const isClient = profile.role === 'CLIENT';
-  const canEditClientFields = isClient;
+  const genderLabel =
+    GENDERS.find((g) => g.value === profile.gender)?.label ?? profile.gender ?? '—';
 
   return (
-    <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="space-y-8">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">My profile</h1>
-          <p className="mt-1 text-sm text-muted">
-            Signed in as {authUser?.email ?? profile.email}
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+              <User className="h-5 w-5" />
+            </div>
+            <h1 className="text-2xl font-semibold text-ink">My profile</h1>
+          </div>
+          <div className="mt-2 ml-[52px] flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted">Manage your account details</p>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${roleBadgeClass(profile.role)}`}
+            >
+              {roleBadgeLabel(profile.role)}
+            </span>
+          </div>
         </div>
         {!editing && (
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-700"
           >
+            <Pencil className="h-4 w-4" />
             Edit profile
           </button>
         )}
-      </div>
+      </header>
 
-      {error && (
-        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
 
-      {editing ? (
-        <form
-          onSubmit={handleSave}
-          className="mt-6 max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="text-lg font-semibold text-ink">Edit profile</h2>
-          <p className="mt-1 text-xs text-muted">
-            Email and role cannot be changed here. Contact an administrator if needed.
-          </p>
-
-          <label className="mt-4 block text-sm font-medium text-slate-700">
-            Name
-            <input
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={patientInputClass}
-            />
-          </label>
-
-          {canEditClientFields && (
-            <>
-              <label className="mt-4 block text-sm font-medium text-slate-700">
-                Phone
-                <input
-                  required
-                  type="tel"
-                  minLength={10}
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className={patientInputClass}
-                />
-              </label>
-              <label className="mt-4 block text-sm font-medium text-slate-700">
-                Website (optional)
-                <input
-                  type="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  className={patientInputClass}
-                />
-              </label>
-              <label className="mt-4 block text-sm font-medium text-slate-700">
-                Business address
-                <input
-                  required
-                  value={businessAddress}
-                  onChange={(e) => setBusinessAddress(e.target.value)}
-                  className={patientInputClass}
-                />
-              </label>
-            </>
-          )}
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <aside className={`${cardClass} p-6`}>
+          <h2 className="text-sm font-semibold text-ink">Account overview</h2>
+          <div className="mt-6 flex flex-col items-center text-center sm:items-start sm:text-left">
+            <div
+              className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-600 text-2xl font-semibold text-white shadow-sm"
+              aria-hidden
             >
-              {saving ? 'Saving…' : 'Save changes'}
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => {
-                resetForm(profile);
-                setEditing(false);
-                setError(null);
-              }}
-              className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-brand-500"
-            >
-              Cancel
-            </button>
+              {initialsFromName(profile.name)}
+            </div>
+            <p className="mt-4 text-xl font-semibold text-ink">{profile.name}</p>
           </div>
-        </form>
-      ) : (
-        <div className="mt-6 max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-medium uppercase text-muted">Name</dt>
-              <dd className="mt-1 text-sm text-ink">{profile.name}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase text-muted">Email</dt>
-              <dd className="mt-1 text-sm text-ink">{profile.email}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase text-muted">Role</dt>
-              <dd className="mt-1 text-sm text-ink">{roleLabel(profile.role)}</dd>
-            </div>
-            {profile.role === 'EMPLOYEE' && profile.employeeType && (
-              <div>
-                <dt className="text-xs font-medium uppercase text-muted">Employee type</dt>
-                <dd className="mt-1 text-sm text-ink">{profile.employeeType}</dd>
-              </div>
-            )}
-            {isClient && (
-              <>
-                <div>
-                  <dt className="text-xs font-medium uppercase text-muted">Gender</dt>
-                  <dd className="mt-1 text-sm text-ink">
-                    {GENDERS.find((g) => g.value === profile.gender)?.label ??
-                      profile.gender ??
-                      '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase text-muted">Region</dt>
-                  <dd className="mt-1 text-sm text-ink">{profile.region ?? '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase text-muted">Phone</dt>
-                  <dd className="mt-1 text-sm text-ink">{profile.phone ?? '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase text-muted">Website</dt>
-                  <dd className="mt-1 text-sm text-ink">
-                    {profile.website ? (
-                      <a
-                        href={profile.website}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-brand-700 hover:underline"
-                      >
-                        {profile.website}
-                      </a>
-                    ) : (
-                      '—'
-                    )}
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-xs font-medium uppercase text-muted">Business address</dt>
-                  <dd className="mt-1 text-sm text-ink">{profile.businessAddress ?? '—'}</dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-xs font-medium uppercase text-muted">How you heard about us</dt>
-                  <dd className="mt-1 text-sm text-ink">{profile.hearAboutUs ?? '—'}</dd>
-                </div>
-              </>
-            )}
-          </dl>
-          <p className="mt-6 text-xs text-muted">
-            Member since {new Date(profile.createdAt).toLocaleDateString()}
-            {profile.updatedAt &&
-              ` · Last updated ${new Date(profile.updatedAt).toLocaleDateString()}`}
-          </p>
-          {isClient && (
-            <p className="mt-2 text-xs text-muted">
-              Gender, region, and referral source were set at registration. Contact support to
-              change them.
+
+          <div className="mt-6 space-y-4">
+            <OverviewRow icon={<Mail className="h-4 w-4" />} label="Email">
+              <span className="break-all">{profile.email}</span>
+            </OverviewRow>
+            <OverviewRow icon={<User className="h-4 w-4" />} label="Role">
+              {roleBadgeLabel(profile.role)}
+              {profile.role === 'EMPLOYEE' && profile.employeeType && (
+                <span className="ml-1 text-muted">· {profile.employeeType}</span>
+              )}
+            </OverviewRow>
+            <OverviewRow icon={<Building2 className="h-4 w-4" />} label="Member since">
+              {formatMemberDate(profile.createdAt)}
+            </OverviewRow>
+          </div>
+
+          {profile.updatedAt && (
+            <p className="mt-6 border-t border-slate-100 pt-4 text-xs text-muted">
+              Last updated {formatMemberDate(profile.updatedAt)}
             </p>
           )}
+
+          {isClient && !editing && (
+            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                Practice details
+              </p>
+              <OverviewRow icon={<Phone className="h-4 w-4" />} label="Phone">
+                {profile.phone ?? '—'}
+              </OverviewRow>
+              <OverviewRow icon={<Globe className="h-4 w-4" />} label="Website">
+                {profile.website ? (
+                  <a
+                    href={profile.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand-700 hover:underline"
+                  >
+                    {profile.website}
+                  </a>
+                ) : (
+                  '—'
+                )}
+              </OverviewRow>
+              <OverviewRow icon={<MapPin className="h-4 w-4" />} label="Address">
+                {profile.businessAddress ?? '—'}
+              </OverviewRow>
+            </div>
+          )}
+        </aside>
+
+        <div className={`${cardClass} p-6`}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-ink">
+              {editing ? 'Edit profile' : 'Profile details'}
+            </h2>
+            {editing && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                Unsaved changes
+              </span>
+            )}
+          </div>
+
+          {editing ? (
+            <form onSubmit={handleSave} className="mt-6">
+              <FormSection title="Personal" icon={<User className="h-4 w-4" />}>
+                <label className="block text-sm font-medium text-slate-700">
+                  Full name
+                  <input
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={inputClass}
+                    autoComplete="name"
+                  />
+                </label>
+                {isClient && (
+                  <label className="block text-sm font-medium text-slate-700">
+                    Phone
+                    <input
+                      required
+                      type="tel"
+                      minLength={10}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className={inputClass}
+                      autoComplete="tel"
+                    />
+                  </label>
+                )}
+              </FormSection>
+
+              {isClient && (
+                <FormSection title="Practice" icon={<Building2 className="h-4 w-4" />}>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Website
+                    <span className="ml-1 font-normal text-muted">(optional)</span>
+                    <input
+                      type="url"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      className={inputClass}
+                      placeholder="https://"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Business address
+                    <input
+                      required
+                      value={businessAddress}
+                      onChange={(e) => setBusinessAddress(e.target.value)}
+                      className={inputClass}
+                      autoComplete="street-address"
+                    />
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ReadOnlyChip label="Gender" value={genderLabel} />
+                    <ReadOnlyChip label="Region" value={profile.region ?? '—'} />
+                  </div>
+                  <ReadOnlyChip
+                    label="How you heard about us"
+                    value={profile.hearAboutUs ?? '—'}
+                  />
+                  <p className="text-xs text-muted">
+                    Gender, region, and referral source were set at registration. Contact support
+                    to change them.
+                  </p>
+                </FormSection>
+              )}
+
+              {!isClient && (
+                <p className="mt-4 text-xs text-muted">
+                  Email and role cannot be changed here. Contact an administrator if needed.
+                </p>
+              )}
+
+              <div className="mt-8 flex flex-wrap gap-3 border-t border-slate-100 pt-6">
+                <Button
+                  type="submit"
+                  loading={saving}
+                  loadingText="Saving…"
+                  className="inline-flex gap-2 rounded-lg"
+                >
+                  <Save className="h-4 w-4" />
+                  Save changes
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={handleCancel}
+                  className="rounded-lg"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="mt-6 space-y-6">
+              <FormSection title="Personal" icon={<User className="h-4 w-4" />}>
+                <ReadOnlyChip label="Full name" value={profile.name} />
+                {isClient && (
+                  <ReadOnlyChip label="Phone" value={profile.phone ?? '—'} />
+                )}
+              </FormSection>
+
+              {isClient && (
+                <FormSection title="Practice" icon={<Building2 className="h-4 w-4" />}>
+                  <ReadOnlyChip
+                    label="Website"
+                    value={profile.website ?? '—'}
+                  />
+                  <ReadOnlyChip
+                    label="Business address"
+                    value={profile.businessAddress ?? '—'}
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ReadOnlyChip label="Gender" value={genderLabel} />
+                    <ReadOnlyChip label="Region" value={profile.region ?? '—'} />
+                  </div>
+                  <ReadOnlyChip
+                    label="How you heard about us"
+                    value={profile.hearAboutUs ?? '—'}
+                  />
+                </FormSection>
+              )}
+
+              {!isClient && (
+                <p className="text-xs text-muted">
+                  Use Edit profile to update your display name. Email and role are managed by your
+                  administrator.
+                </p>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

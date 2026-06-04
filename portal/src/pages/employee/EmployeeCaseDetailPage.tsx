@@ -10,7 +10,9 @@ import { patientInputClass } from '../../components/PatientForm';
 import { getEmployeeHomePath } from '../../lib/routes';
 import { useAppSelector } from '../../store/hooks';
 import { api, ApiError } from '../../lib/api';
+import { MAX, sanitizeText } from '../../lib/sanitize';
 import { toast } from '../../lib/toast';
+import { Alert, Button, SkeletonCaseDetail } from '../../components/ui';
 import type { CaseRecord, Prescription } from '../../types/case';
 
 export function EmployeeCaseDetailPage() {
@@ -95,7 +97,11 @@ export function EmployeeCaseDetailPage() {
     try {
       const data = await api.post<{ case: CaseRecord }>(
         `/api/designer/cases/${id}/submit-to-qc`,
-        { notes: submitNotes.trim() || undefined },
+        {
+          notes:
+            sanitizeText(submitNotes, { maxLength: MAX.notes, multiline: true }) ||
+            undefined,
+        },
       );
       setCaseRecord(data.case);
     } catch (err) {
@@ -124,7 +130,11 @@ export function EmployeeCaseDetailPage() {
     try {
       const data = await api.post<{ case: CaseRecord }>(
         `/api/qc/cases/${id}/reject`,
-        { notes: rejectNotes.trim() || undefined },
+        {
+          notes:
+            sanitizeText(rejectNotes, { maxLength: MAX.notes, multiline: true }) ||
+            undefined,
+        },
       );
       setCaseRecord(data.case);
     } catch (err) {
@@ -143,13 +153,9 @@ export function EmployeeCaseDetailPage() {
     toast.success('Production files uploaded');
   };
 
-  if (loading) return <p className="text-muted">Loading case…</p>;
+  if (loading) return <SkeletonCaseDetail sections={4} />;
   if (error || !caseRecord) {
-    return (
-      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-        {error ?? 'Case not found'}
-      </p>
-    );
+    return <Alert variant="error">{error ?? 'Case not found'}</Alert>;
   }
 
   const back = getEmployeeHomePath(user?.employeeType ?? null);
@@ -172,11 +178,7 @@ export function EmployeeCaseDetailPage() {
         <StatusBadge status={caseRecord.status} />
       </div>
 
-      {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
 
       {isDesigner && caseRecord.status === 'ASSIGNED' && (
         <section className="rounded-xl border border-sky-200 bg-sky-50 p-6">
@@ -184,14 +186,15 @@ export function EmployeeCaseDetailPage() {
           <p className="mt-1 text-sm text-sky-800/90">
             This case is assigned to you. Start design when you are ready to work.
           </p>
-          <button
+          <Button
             type="button"
-            disabled={acting}
+            loading={acting}
+            loadingText="Starting…"
             onClick={startDesign}
-            className="mt-3 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            className="mt-3"
           >
             Start design
-          </button>
+          </Button>
         </section>
       )}
 
@@ -207,14 +210,15 @@ export function EmployeeCaseDetailPage() {
               className={patientInputClass}
             />
           </label>
-          <button
+          <Button
             type="button"
-            disabled={acting}
+            loading={acting}
+            loadingText="Submitting…"
             onClick={submitToQc}
-            className="mt-3 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            className="mt-3"
           >
             Submit to QC
-          </button>
+          </Button>
           <div className="mt-4">
             <FileUpload
               label="Upload production files"
@@ -238,22 +242,24 @@ export function EmployeeCaseDetailPage() {
             />
           </label>
           <div className="mt-3 flex flex-wrap gap-3">
-            <button
+            <Button
               type="button"
-              disabled={acting}
+              loading={acting}
+              loadingText="Approving…"
               onClick={qcApprove}
-              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="!bg-emerald-600 hover:!bg-emerald-700"
             >
               Approve for client
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              disabled={acting}
+              variant="secondary"
+              loading={acting}
+              loadingText="Rejecting…"
               onClick={qcReject}
-              className="rounded-md border border-orange-300 bg-white px-4 py-2 text-sm text-orange-800 hover:bg-orange-50 disabled:opacity-60"
             >
               Reject to designer
-            </button>
+            </Button>
           </div>
         </section>
       )}

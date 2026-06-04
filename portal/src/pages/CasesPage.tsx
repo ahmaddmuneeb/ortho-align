@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { CaseList, CaseListSkeleton } from '../components/CaseList';
+import { Alert } from '../components/ui';
 import { CLIENT_STATUS_FILTERS } from '../lib/caseStatus';
 import { api, ApiError } from '../lib/api';
+import { usePagination } from '../lib/usePagination';
 import type { CaseRecord, CaseStatus } from '../types/case';
 
 export function CasesPage() {
@@ -33,6 +36,15 @@ export function CasesPage() {
     };
   }, [statusFilter]);
 
+  const {
+    page,
+    pageSize,
+    totalItems,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(cases, [statusFilter]);
+
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -42,8 +54,9 @@ export function CasesPage() {
         </div>
         <Link
           to="/cases/new"
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
+          <Plus className="h-4 w-4" />
           New case
         </Link>
       </div>
@@ -67,14 +80,24 @@ export function CasesPage() {
 
       {loading && <CaseListSkeleton />}
       {error && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-6">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {!loading && !error && (
         <div className="mt-6">
-          <CaseList cases={cases} detailPath={(cid) => `/cases/${cid}`} />
+          <CaseList
+            cases={paginatedItems}
+            detailPath={(cid) => `/cases/${cid}`}
+            pagination={{
+              page,
+              pageSize,
+              totalItems,
+              onPageChange: setPage,
+              onPageSizeChange: setPageSize,
+            }}
+          />
         </div>
       )}
     </div>

@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { ApiError } from '../lib/api';
+import { Alert } from './ui';
 
 interface FileUploadProps {
   label: string;
@@ -59,11 +61,16 @@ export function FileUpload({
         onChange={handleChange}
         className="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100"
       />
-      {uploading && <p className="mt-1 text-xs text-muted">Uploading…</p>}
-      {error && (
-        <p className="mt-1 text-xs text-red-600" role="alert">
-          {error}
+      {uploading && (
+        <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          Uploading…
         </p>
+      )}
+      {error && (
+        <div className="mt-2">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
     </div>
   );

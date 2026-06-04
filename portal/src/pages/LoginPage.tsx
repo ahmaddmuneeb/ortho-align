@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../components/Layout';
+import { Alert, Button } from '../components/ui';
 import { ApiError } from '../lib/api';
+import { sanitizeEmail, sanitizePassword } from '../lib/sanitize';
 import { getRoleHomePath } from '../lib/routes';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { login as loginThunk } from '../store/slices/authSlice';
@@ -28,7 +30,12 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await dispatch(loginThunk({ email, password })).unwrap();
+      const result = await dispatch(
+        loginThunk({
+          email: sanitizeEmail(email),
+          password: sanitizePassword(password),
+        }),
+      ).unwrap();
       navigate(getRoleHomePath(result.user), { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed');
@@ -47,15 +54,15 @@ export function LoginPage() {
         <p className="mt-1 text-sm text-muted">Access your OrthoAlign portal</p>
 
         {successMessage && (
-          <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">
-            {successMessage}
-          </p>
+          <div className="mt-4">
+            <Alert variant="success">{successMessage}</Alert>
+          </div>
         )}
 
         {error && (
-          <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-            {error}
-          </p>
+          <div className="mt-4">
+            <Alert variant="error">{error}</Alert>
+          </div>
         )}
 
         <label className="mt-4 block text-sm font-medium text-slate-700">
@@ -82,13 +89,14 @@ export function LoginPage() {
           />
         </label>
 
-        <button
+        <Button
           type="submit"
-          disabled={submitting}
-          className="mt-6 w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          loading={submitting}
+          loadingText="Signing in…"
+          className="mt-6 w-full py-2.5"
         >
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </button>
+          Sign in
+        </Button>
 
         <p className="mt-4 text-center text-sm text-muted">
           New practice?{' '}

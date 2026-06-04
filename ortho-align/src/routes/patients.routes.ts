@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticate, authorize, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import prisma from '../lib/prisma';
+import { clampString } from '../lib/validation';
 import { UserRole, Gender } from '@prisma/client';
 
 const router = Router();
@@ -41,6 +42,10 @@ router.use(authenticate, denyPatient);
  *               notes:
  *                 type: string
  *                 example: Regular patient, upper arch needed
+ *               createdById:
+ *                 type: string
+ *                 description: CLIENT user ID (ADMIN only; required when admin creates on behalf of a client)
+ *                 example: clx123abc
  *     responses:
  *       201:
  *         description: Patient created successfully
@@ -74,11 +79,31 @@ router.use(authenticate, denyPatient);
  */
 router.post('/', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, gender, dateOfBirth, address, notes } = req.body;
+    const { gender, dateOfBirth, createdById: bodyCreatedById } = req.body;
+    const name = clampString(req.body.name, 200, { required: true });
+    const address = clampString(req.body.address, 500);
+    const notes = clampString(req.body.notes, 5000, { multiline: true });
 
     if (!name) {
       res.status(400).json({ error: 'Patient name is required' });
       return;
+    }
+
+    let createdById = req.user!.id;
+    if (req.user!.role === UserRole.ADMIN) {
+      if (!bodyCreatedById) {
+        res.status(400).json({ error: 'createdById (client user) is required for admin patient creation' });
+        return;
+      }
+      const client = await prisma.user.findUnique({
+        where: { id: bodyCreatedById },
+        select: { id: true, role: true },
+      });
+      if (!client || client.role !== UserRole.CLIENT) {
+        res.status(400).json({ error: 'createdById must be a valid CLIENT user' });
+        return;
+      }
+      createdById = client.id;
     }
 
     const patient = await prisma.patient.create({
@@ -88,7 +113,7 @@ router.post('/', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthReq
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         address: address || null,
         notes,
-        createdById: req.user!.id,
+        createdById,
       },
       include: {
         createdBy: {
@@ -337,7 +362,10 @@ router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
 router.patch('/:id', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const { name, gender, dateOfBirth, address, notes } = req.body;
+    const { gender, dateOfBirth } = req.body;
+    const name = clampString(req.body.name, 200);
+    const address = clampString(req.body.address, 500);
+    const notes = clampString(req.body.notes, 5000, { multiline: true });
 
     const existingPatient = await prisma.patient.findUnique({
       where: { id },
@@ -379,6 +407,76 @@ router.patch('/:id', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: Aut
     res.json({ patient });
   } catch (error) {
     console.error('Update patient error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/patients/{id}:
+ *   delete:
+ *     tags: [Patients]
+ *     summary: Delete patient (ADMIN only)
+ *     description: |
+ *       Permanently delete a patient record. All orthodontic cases for this patient are
+ *       cascade-deleted (including files, payments, prescriptions, and workflow history).
+ *       Linked patient-portal user accounts are not deleted; their portal link is cleared.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Patient ID
+ *     responses:
+ *       200:
+ *         description: Patient deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Patient deleted
+ *                 deletedCaseCount:
+ *                   type: integer
+ *                   example: 2
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - ADMIN only
+ *       404:
+ *         description: Patient not found
+ */
+router.delete('/:id', authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+
+    const existingPatient = await prisma.patient.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { cases: true } },
+      },
+    });
+
+    if (!existingPatient) {
+      res.status(404).json({ error: 'Patient not found' });
+      return;
+    }
+
+    const deletedCaseCount = existingPatient._count.cases;
+
+    await prisma.patient.delete({
+      where: { id },
+    });
+
+    res.json({
+      message: 'Patient deleted',
+      deletedCaseCount,
+    });
+  } catch (error) {
+    console.error('Delete patient error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

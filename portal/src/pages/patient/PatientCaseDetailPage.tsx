@@ -4,6 +4,7 @@ import { CommentsSection } from '../../components/case/CommentsSection';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CASE_STATUS_LABELS } from '../../lib/caseStatus';
 import { api, ApiError } from '../../lib/api';
+import { Alert, SkeletonCaseDetail } from '../../components/ui';
 import type { CaseFile, CaseRecord, CaseWorkflowLog } from '../../types/case';
 
 export function PatientCaseDetailPage() {
@@ -41,13 +42,11 @@ export function PatientCaseDetailPage() {
     };
   }, [load]);
 
-  if (loading) return <p className="text-muted">Loading case…</p>;
+  if (loading) return <SkeletonCaseDetail sections={3} />;
   if (error || !caseRecord) {
     return (
       <div>
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error ?? 'Case not found'}
-        </p>
+        <Alert variant="error">{error ?? 'Case not found'}</Alert>
         <Link
           to="/patient/cases"
           className="mt-4 inline-block text-sm font-medium text-brand-700 hover:underline"
@@ -122,7 +121,9 @@ export function PatientCaseDetailPage() {
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-ink">Files</h2>
         {files.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">No files uploaded yet.</p>
+          <div className="mt-3">
+            <Alert variant="info">No files uploaded yet.</Alert>
+          </div>
         ) : (
           <ul className="mt-4 divide-y divide-slate-100">
             {files.map((f) => (

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
+import { MAX, sanitizeText } from '../../lib/sanitize';
 import { patientInputClass } from '../PatientForm';
+import { Alert, Button } from '../ui';
 import type { CaseRecord, CaseStatus } from '../../types/case';
 
 interface ClientReviewPanelProps {
@@ -40,7 +42,12 @@ export function ClientReviewPanel({ caseRecord, onUpdate }: ClientReviewPanelPro
     try {
       const data = await api.post<{ case: CaseRecord }>(
         `/api/cases/${caseRecord.id}/transition`,
-        { status, note: note.trim() || undefined },
+        {
+          status,
+          note:
+            sanitizeText(note, { maxLength: MAX.transitionNote, multiline: true }) ||
+            undefined,
+        },
       );
       onUpdate(data.case);
       setNote('');
@@ -58,9 +65,9 @@ export function ClientReviewPanel({ caseRecord, onUpdate }: ClientReviewPanelPro
         Approve the case or request revisions. Check production links below.
       </p>
       {error && (
-        <p className="mt-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-3">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
       <label className="mt-4 block text-sm font-medium text-slate-700">
         Note (optional for approval, recommended for rejection)
@@ -73,24 +80,26 @@ export function ClientReviewPanel({ caseRecord, onUpdate }: ClientReviewPanelPro
       </label>
       <div className="mt-4 flex flex-wrap gap-3">
         {transitions.includes('APPROVED') && (
-          <button
+          <Button
             type="button"
-            disabled={loading}
+            loading={loading}
+            loadingText="Approving…"
             onClick={() => transition('APPROVED')}
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+            className="!bg-emerald-600 hover:!bg-emerald-700"
           >
             Approve
-          </button>
+          </Button>
         )}
         {transitions.includes('CLIENT_REJECTED') && (
-          <button
+          <Button
             type="button"
-            disabled={loading}
+            variant="secondary"
+            loading={loading}
+            loadingText="Sending…"
             onClick={() => transition('CLIENT_REJECTED')}
-            className="rounded-md border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-800 hover:bg-orange-50 disabled:opacity-60"
           >
             Request revision
-          </button>
+          </Button>
         )}
       </div>
     </section>

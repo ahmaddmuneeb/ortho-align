@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Plus, Search } from 'lucide-react';
 import { CaseList, CaseListSkeleton } from '../../components/CaseList';
+import { Alert } from '../../components/ui';
 import { patientInputClass } from '../../components/PatientForm';
 import { ADMIN_STATUS_FILTERS } from '../../lib/caseStatus';
 import { api, ApiError } from '../../lib/api';
+import { sanitizeSearchQuery } from '../../lib/sanitize';
+import { usePagination } from '../../lib/usePagination';
 import type { CaseRecord, CaseStatus } from '../../types/case';
 
 function matchesSearch(c: CaseRecord, query: string): boolean {
-  const q = query.trim().toLowerCase();
+  const q = sanitizeSearchQuery(query).toLowerCase();
   if (!q) return true;
   const parts = [
     c.id,
@@ -19,9 +23,19 @@ function matchesSearch(c: CaseRecord, query: string): boolean {
   return parts.some((p) => p?.toLowerCase().includes(q));
 }
 
+const VALID_STATUSES = new Set<CaseStatus>(
+  ADMIN_STATUS_FILTERS.map((f) => f.value).filter(Boolean) as CaseStatus[],
+);
+
 export function AdminCasesPage() {
+  const [searchParams] = useSearchParams();
+  const initialStatus = searchParams.get('status');
   const [cases, setCases] = useState<CaseRecord[]>([]);
-  const [statusFilter, setStatusFilter] = useState<'' | CaseStatus>('');
+  const [statusFilter, setStatusFilter] = useState<'' | CaseStatus>(() =>
+    initialStatus && VALID_STATUSES.has(initialStatus as CaseStatus)
+      ? (initialStatus as CaseStatus)
+      : '',
+  );
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +69,15 @@ export function AdminCasesPage() {
     [cases, search],
   );
 
+  const {
+    page,
+    pageSize,
+    totalItems,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(filteredCases, [search, statusFilter]);
+
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -64,8 +87,9 @@ export function AdminCasesPage() {
         </div>
         <Link
           to="/admin/cases/new"
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
+          <Plus className="h-4 w-4" />
           New case
         </Link>
       </div>
@@ -87,26 +111,29 @@ export function AdminCasesPage() {
         </label>
         <label className="block flex-1 text-sm font-medium text-slate-700 sm:min-w-[200px]">
           Search
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Patient, client, or case ID"
-            className={`${patientInputClass} mt-1`}
-          />
+          <div className="relative mt-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Patient, client, or case ID"
+              className={`${patientInputClass} pl-9`}
+            />
+          </div>
         </label>
       </div>
 
-      {loading && <CaseListSkeleton />}
+      {loading && <CaseListSkeleton variant="admin" />}
       {error && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-6">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
       {!loading && !error && (
         <div className="mt-6">
           <CaseList
-            cases={filteredCases}
+            cases={paginatedItems}
             detailPath={(id) => `/admin/cases/${id}`}
             variant="admin"
             emptyMessage={
@@ -114,6 +141,13 @@ export function AdminCasesPage() {
                 ? 'No cases match your search.'
                 : 'No cases found.'
             }
+            pagination={{
+              page,
+              pageSize,
+              totalItems,
+              onPageChange: setPage,
+              onPageSizeChange: setPageSize,
+            }}
           />
         </div>
       )}

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
+import { parseAmount } from '../../lib/sanitize';
 import { toast } from '../../lib/toast';
 import { FileUpload } from '../FileUpload';
 import { patientInputClass } from '../PatientForm';
+import { Alert, Button } from '../ui';
+import { SkeletonText } from '../ui/Skeleton';
 import type { CasePayment, CaseRecord, PaymentStatus } from '../../types/case';
 
 interface PaymentSectionProps {
@@ -55,8 +58,8 @@ export function PaymentSection({ caseRecord, onCaseUpdate }: PaymentSectionProps
 
   const createPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    const num = parseFloat(amount);
-    if (!num || num <= 0) {
+    const num = parseAmount(amount);
+    if (num == null) {
       setError('Enter a valid amount');
       return;
     }
@@ -123,11 +126,15 @@ export function PaymentSection({ caseRecord, onCaseUpdate }: PaymentSectionProps
         </div>
       )}
 
-      {loading && <p className="mt-4 text-sm text-muted">Loading payments…</p>}
+      {loading && (
+        <div className="mt-4">
+          <SkeletonText lines={2} />
+        </div>
+      )}
       {error && (
-        <p className="mt-4 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {payments.length > 0 && (
@@ -165,13 +172,9 @@ export function PaymentSection({ caseRecord, onCaseUpdate }: PaymentSectionProps
                 placeholder="0.00"
               />
             </label>
-            <button
-              type="submit"
-              disabled={creating}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
-              {creating ? 'Creating…' : 'Record payment'}
-            </button>
+            <Button type="submit" loading={creating} loadingText="Creating…">
+              Record payment
+            </Button>
           </form>
 
           <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/80 p-4">

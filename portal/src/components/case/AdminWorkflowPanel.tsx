@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 import { CASE_STATUS_LABELS } from '../../lib/caseStatus';
+import { MAX, sanitizeText } from '../../lib/sanitize';
 import { toast } from '../../lib/toast';
 import { patientInputClass } from '../PatientForm';
+import { Alert, Button } from '../ui';
 import type { CaseRecord, CaseStatus } from '../../types/case';
 
 interface AdminWorkflowPanelProps {
@@ -41,7 +43,12 @@ export function AdminWorkflowPanel({ caseRecord, onUpdate }: AdminWorkflowPanelP
     try {
       const data = await api.post<{ case: CaseRecord }>(
         `/api/cases/${caseRecord.id}/transition`,
-        { status, note: note.trim() || undefined },
+        {
+          status,
+          note:
+            sanitizeText(note, { maxLength: MAX.transitionNote, multiline: true }) ||
+            undefined,
+        },
       );
       onUpdate(data.case);
       setNote('');
@@ -62,9 +69,9 @@ export function AdminWorkflowPanel({ caseRecord, onUpdate }: AdminWorkflowPanelP
         Admin transitions available from {CASE_STATUS_LABELS[caseRecord.status]}
       </p>
       {error && (
-        <p className="mt-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-3">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
       <label className="mt-4 block text-sm font-medium text-slate-700">
         Note (optional)
@@ -77,15 +84,15 @@ export function AdminWorkflowPanel({ caseRecord, onUpdate }: AdminWorkflowPanelP
       </label>
       <div className="mt-4 flex flex-wrap gap-3">
         {transitions.map((status) => (
-          <button
+          <Button
             key={status}
             type="button"
-            disabled={loading}
+            loading={loading}
+            loadingText="Updating…"
             onClick={() => transition(status)}
-            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
             → {CASE_STATUS_LABELS[status]}
-          </button>
+          </Button>
         ))}
       </div>
     </section>

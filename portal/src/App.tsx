@@ -21,6 +21,9 @@ import { AdminEmployeeNewPage } from './pages/admin/AdminEmployeeNewPage';
 import { AdminCasesPage } from './pages/admin/AdminCasesPage';
 import { AdminCaseNewPage } from './pages/admin/AdminCaseNewPage';
 import { AdminCaseDetailPage } from './pages/admin/AdminCaseDetailPage';
+import { AdminPatientsPage } from './pages/admin/AdminPatientsPage';
+import { AdminPatientNewPage } from './pages/admin/AdminPatientNewPage';
+import { AdminPatientDetailPage } from './pages/admin/AdminPatientDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PatientLayout } from './components/PatientLayout';
 import { PatientDashboardPage } from './pages/patient/PatientDashboardPage';
@@ -86,6 +89,9 @@ export default function App() {
       <Route element={<ProtectedRoute roles={['ADMIN']} />}>
         <Route element={<PortalLayout />}>
           <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin/patients" element={<AdminPatientsPage />} />
+          <Route path="/admin/patients/new" element={<AdminPatientNewPage />} />
+          <Route path="/admin/patients/:id" element={<AdminPatientDetailPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/users/new" element={<AdminEmployeeNewPage />} />
           <Route path="/admin/users/:id" element={<AdminUserDetailPage />} />

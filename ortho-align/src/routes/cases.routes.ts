@@ -4,6 +4,7 @@ import { AuthRequest } from '../types';
 import { CaseService } from '../services/case.service';
 import { WorkflowService } from '../services/workflow.service';
 import { UserRole, EmployeeType, CaseStatus } from '@prisma/client';
+import { clampString } from '../lib/validation';
 import './cases.swagger';
 
 const router = Router();
@@ -12,7 +13,8 @@ router.use(authenticate, denyPatient);
 
 router.post('/', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { patientId, notes } = req.body;
+    const { patientId } = req.body;
+    const notes = clampString(req.body.notes, 5000, { multiline: true });
 
     if (!patientId) {
       res.status(400).json({ error: 'Patient ID is required' });
@@ -22,7 +24,7 @@ router.post('/', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthReq
     const newCase = await CaseService.createCase({
       patientId,
       createdById: req.user!.id,
-      notes,
+      notes: notes ?? undefined,
     });
 
     res.status(201).json({ case: newCase });
@@ -104,7 +106,7 @@ router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
 router.patch('/:id/notes', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const { notes } = req.body;
+    const notes = clampString(req.body.notes, 5000, { multiline: true });
 
     const caseRecord = await CaseService.getCaseById(id);
 
@@ -123,7 +125,7 @@ router.patch('/:id/notes', async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const updatedCase = await CaseService.updateCaseNotes(id, notes);
+    const updatedCase = await CaseService.updateCaseNotes(id, notes ?? '');
 
     res.json({ case: updatedCase });
   } catch (error) {
@@ -161,7 +163,8 @@ router.post('/:id/assign', authorize(UserRole.ADMIN), async (req: AuthRequest, r
 router.post('/:id/transition', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const { status, note } = req.body;
+    const { status } = req.body;
+    const note = clampString(req.body.note, 2000, { multiline: true });
 
     if (!status) {
       res.status(400).json({ error: 'Status is required' });
@@ -174,7 +177,7 @@ router.post('/:id/transition', async (req: AuthRequest, res: Response): Promise<
       req.user!.id,
       req.user!.role,
       req.user!.employeeType,
-      note
+      note ?? undefined
     );
 
     res.json({ case: updatedCase });

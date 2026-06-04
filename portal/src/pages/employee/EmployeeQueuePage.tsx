@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CaseList, CaseListSkeleton } from '../../components/CaseList';
+import { Alert } from '../../components/ui';
 import { EMPLOYEE_STATUS_FILTERS } from '../../lib/caseStatus';
 import { useAppSelector } from '../../store/hooks';
 import { api, ApiError } from '../../lib/api';
+import { usePagination } from '../../lib/usePagination';
 import type { CaseRecord, CaseStatus } from '../../types/case';
 
 export function EmployeeQueuePage() {
@@ -58,6 +60,15 @@ export function EmployeeQueuePage() {
     };
   }, [statusFilter, isQcRoute, user?.id, user?.employeeType]);
 
+  const {
+    page,
+    pageSize,
+    totalItems,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(cases, [statusFilter, isQcRoute]);
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-ink">{title}</h1>
@@ -82,16 +93,23 @@ export function EmployeeQueuePage() {
 
       {loading && <CaseListSkeleton />}
       {error && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-6">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
       {!loading && !error && (
         <div className="mt-6">
           <CaseList
-            cases={cases}
+            cases={paginatedItems}
             detailPath={(id) => `/employee/cases/${id}`}
             emptyMessage="No cases in your queue."
+            pagination={{
+              page,
+              pageSize,
+              totalItems,
+              onPageChange: setPage,
+              onPageSizeChange: setPageSize,
+            }}
           />
         </div>
       )}

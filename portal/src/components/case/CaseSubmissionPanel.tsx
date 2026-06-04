@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 import { toast } from '../../lib/toast';
+import { Alert, Button } from '../ui';
 import type { CaseRecord } from '../../types/case';
 
 interface CaseSubmissionPanelProps {
@@ -49,18 +50,19 @@ export function CaseSubmissionPanel({ caseRecord, onSubmitted }: CaseSubmissionP
         When payment, files, and prescription are ready, submit for OrthoAlign review.
       </p>
       {error && (
-        <p className="mt-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-3">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
-      <button
+      <Button
         type="button"
         onClick={handleSubmit}
-        disabled={submitting}
-        className="mt-4 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        loading={submitting}
+        loadingText="Submitting…"
+        className="mt-4"
       >
-        {submitting ? 'Submitting…' : 'Submit for approval'}
-      </button>
+        Submit for approval
+      </Button>
     </section>
   );
 }

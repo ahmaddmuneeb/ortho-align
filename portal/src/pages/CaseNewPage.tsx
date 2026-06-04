@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CaseForm } from '../components/CaseForm';
+import { Alert } from '../components/ui';
+import { SkeletonForm } from '../components/ui/Skeleton';
 import { api, ApiError } from '../lib/api';
 import type { CaseRecord } from '../types/case';
 import type { Patient, PatientsListResponse } from '../types/patient';
@@ -53,16 +55,22 @@ export function CaseNewPage() {
       <h1 className="mt-4 text-2xl font-semibold text-ink">New case</h1>
       <p className="mt-1 text-sm text-muted">Start a case in pending payment status</p>
 
-      {loading && <p className="mt-6 text-muted">Loading patients…</p>}
+      {loading && (
+        <div className="mt-6 max-w-lg">
+          <SkeletonForm fields={2} />
+        </div>
+      )}
       {error && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-6">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {!loading && !error && patients.length === 0 && (
         <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-          <p className="text-sm text-muted">Add a patient before creating a case.</p>
+          <Alert variant="warning" title="No patients yet">
+            Add a patient before creating a case.
+          </Alert>
           <Link
             to="/patients/new"
             className="mt-4 inline-block text-sm font-medium text-brand-700 hover:underline"

@@ -3,6 +3,8 @@ import { api, ApiError } from '../../lib/api';
 import { fileCategoryLabel } from '../../lib/fileCategories';
 import { toast } from '../../lib/toast';
 import { FileUpload } from '../FileUpload';
+import { Alert } from '../ui';
+import { SkeletonText } from '../ui/Skeleton';
 import type { CaseFile, FileCategory } from '../../types/case';
 
 const UPLOAD_CATEGORIES: { value: FileCategory; label: string }[] = [
@@ -67,14 +69,21 @@ export function CaseFilesSection({
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section
+      id="case-files"
+      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+    >
       <h2 className="text-lg font-semibold text-ink">Case files</h2>
 
-      {loading && <p className="mt-4 text-sm text-muted">Loading files…</p>}
+      {loading && (
+        <div className="mt-4">
+          <SkeletonText lines={3} />
+        </div>
+      )}
       {error && (
-        <p className="mt-4 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {canUpload && (
@@ -104,7 +113,9 @@ export function CaseFilesSection({
       )}
 
       {!loading && files.length === 0 && (
-        <p className="mt-4 text-sm text-muted">No files uploaded yet.</p>
+        <div className="mt-4">
+          <Alert variant="info">No files uploaded yet.</Alert>
+        </div>
       )}
 
       {files.length > 0 && (

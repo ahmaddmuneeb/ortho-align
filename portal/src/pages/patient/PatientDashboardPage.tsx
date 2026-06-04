@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CASE_STATUS_LABELS } from '../../lib/caseStatus';
 import { api, ApiError } from '../../lib/api';
+import { Alert, SkeletonDashboard } from '../../components/ui';
 import type { CaseRecord, CaseStatus } from '../../types/case';
 
 function countByStatus(cases: CaseRecord[], statuses: CaseStatus[]): number {
@@ -51,15 +52,11 @@ export function PatientDashboardPage() {
   );
 
   if (loading) {
-    return <p className="text-muted">Loading dashboard…</p>;
+    return <SkeletonDashboard />;
   }
 
   if (error) {
-    return (
-      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-        {error}
-      </p>
-    );
+    return <Alert variant="error">{error}</Alert>;
   }
 
   return (
@@ -95,7 +92,9 @@ export function PatientDashboardPage() {
           </Link>
         </div>
         {cases.length === 0 ? (
-          <p className="mt-4 text-sm text-muted">No cases linked to your account yet.</p>
+          <div className="mt-4">
+            <Alert variant="info">No cases linked to your account yet.</Alert>
+          </div>
         ) : (
           <ul className="mt-4 divide-y divide-slate-100">
             {cases.slice(0, 5).map((c) => (

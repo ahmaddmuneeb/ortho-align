@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAppSelector } from '../../store/hooks';
 import { api, ApiError } from '../../lib/api';
+import { MAX, sanitizeText } from '../../lib/sanitize';
 import { toast } from '../../lib/toast';
 import { patientInputClass } from '../PatientForm';
 import { FileUpload } from '../FileUpload';
+import { Alert, Button } from '../ui';
+import { SkeletonText } from '../ui/Skeleton';
 import type { CaseComment } from '../../types/case';
 
 interface CommentsSectionProps {
@@ -50,7 +53,10 @@ export function CommentsSection({
     setPosting(true);
     try {
       const formData = new FormData();
-      formData.append('comment', text.trim());
+      formData.append(
+        'comment',
+        sanitizeText(text, { maxLength: MAX.comment, multiline: true }),
+      );
       if (showInternal) formData.append('isInternal', String(isInternal));
       files?.forEach((f) => formData.append('files', f));
       await api.upload<{ comment: CaseComment }>(
@@ -89,11 +95,15 @@ export function CommentsSection({
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-ink">Comments</h2>
 
-      {loading && <p className="mt-4 text-sm text-muted">Loading…</p>}
+      {loading && (
+        <div className="mt-4">
+          <SkeletonText lines={2} />
+        </div>
+      )}
       {error && (
-        <p className="mt-4 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       <ul className="mt-4 space-y-4">
@@ -164,13 +174,14 @@ export function CommentsSection({
             </label>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-4">
-            <button
+            <Button
               type="submit"
-              disabled={posting || !text.trim()}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+              loading={posting}
+              loadingText="Posting…"
+              disabled={!text.trim()}
             >
-              {posting ? 'Posting…' : 'Post comment'}
-            </button>
+              Post comment
+            </Button>
             <FileUpload
               label="Attach files"
               multiple

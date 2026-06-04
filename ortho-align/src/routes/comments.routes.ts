@@ -5,6 +5,7 @@ import { AuthRequest } from '../types';
 import { CommentService } from '../services/comment.service';
 import { CaseService } from '../services/case.service';
 import prisma from '../lib/prisma';
+import { clampString } from '../lib/validation';
 
 const router = Router();
 
@@ -81,10 +82,11 @@ router.post(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const caseId = req.params.id as string;
-      const { comment, isInternal } = req.body;
+      const { isInternal } = req.body;
+      const comment = clampString(req.body.comment, 5000, { required: true, multiline: true });
       const files = req.files as Express.Multer.File[];
 
-      if (!comment || comment.trim().length === 0) {
+      if (!comment) {
         res.status(400).json({ error: 'Comment text is required' });
         return;
       }

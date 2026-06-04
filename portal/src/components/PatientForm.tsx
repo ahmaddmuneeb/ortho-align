@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { MAX, sanitizeText } from '../lib/sanitize';
+import { Alert, Button } from './ui';
 import type { Gender, PatientCreatePayload } from '../types/patient';
 
 const GENDERS: { value: Gender; label: string }[] = [
@@ -38,11 +40,11 @@ export function patientToFormValues(patient: {
 
 export function formValuesToPayload(values: PatientFormValues): PatientCreatePayload {
   return {
-    name: values.name.trim(),
+    name: sanitizeText(values.name, { maxLength: MAX.name }),
     gender: values.gender || null,
     dateOfBirth: values.dateOfBirth || null,
-    address: values.address.trim() || null,
-    notes: values.notes.trim() || null,
+    address: sanitizeText(values.address, { maxLength: MAX.address }) || null,
+    notes: sanitizeText(values.notes, { maxLength: MAX.notes, multiline: true }) || null,
   };
 }
 
@@ -92,9 +94,9 @@ export function PatientForm({
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       {(apiError || fieldError) && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+        <Alert variant="error" title="Please fix the following">
           {fieldError ?? apiError}
-        </p>
+        </Alert>
       )}
 
       <label className="block text-sm font-medium text-slate-700">
@@ -160,22 +162,13 @@ export function PatientForm({
       </label>
 
       <div className="flex flex-wrap gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-        >
-          {submitting ? submittingLabel : submitLabel}
-        </button>
+        <Button type="submit" loading={submitting} loadingText={submittingLabel}>
+          {submitLabel}
+        </Button>
         {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={submitting}
-            className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-brand-500 hover:text-brand-700 disabled:opacity-60"
-          >
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
             Cancel
-          </button>
+          </Button>
         )}
       </div>
     </form>

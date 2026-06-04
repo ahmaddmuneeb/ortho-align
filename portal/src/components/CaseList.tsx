@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
+import { Pagination, type PaginationProps } from './Pagination';
 import { StatusBadge } from './StatusBadge';
+import { SkeletonTable } from './ui/Skeleton';
 import type { CaseRecord } from '../types/case';
 
 interface CaseListProps {
@@ -8,6 +10,7 @@ interface CaseListProps {
   emptyMessage?: string;
   /** Show client doctor and short case id (admin list) */
   variant?: 'default' | 'admin';
+  pagination?: Omit<PaginationProps, 'totalItems'> & { totalItems?: number };
 }
 
 export function CaseList({
@@ -15,17 +18,32 @@ export function CaseList({
   detailPath,
   emptyMessage = 'No cases found.',
   variant = 'default',
+  pagination,
 }: CaseListProps) {
   const isAdmin = variant === 'admin';
-  if (cases.length === 0) {
+  const totalItems = pagination?.totalItems ?? cases.length;
+
+  if (cases.length === 0 && totalItems === 0) {
     return (
-      <p className="px-6 py-8 text-center text-sm text-muted">{emptyMessage}</p>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <p className="px-6 py-8 text-center text-sm text-muted">{emptyMessage}</p>
+      </div>
     );
   }
 
+  const paginationProps: PaginationProps | undefined = pagination
+    ? {
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        totalItems,
+        onPageChange: pagination.onPageChange,
+        onPageSizeChange: pagination.onPageSizeChange,
+      }
+    : undefined;
+
   return (
-    <>
-      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="hidden md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-muted">
             <tr>
@@ -69,12 +87,12 @@ export function CaseList({
         </table>
       </div>
 
-      <ul className="space-y-3 md:hidden">
+      <ul className="divide-y divide-slate-100 md:hidden">
         {cases.map((c) => (
           <li key={c.id}>
             <Link
               to={detailPath(c.id)}
-              className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-brand-300"
+              className="block p-4 hover:bg-slate-50/80"
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="font-medium text-brand-700">
@@ -95,19 +113,13 @@ export function CaseList({
           </li>
         ))}
       </ul>
-    </>
+
+      {paginationProps && <Pagination {...paginationProps} />}
+    </div>
   );
 }
 
-export function CaseListSkeleton() {
-  return (
-    <div className="mt-6 space-y-3" aria-busy="true">
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="h-14 animate-pulse rounded-xl border border-slate-200 bg-white"
-        />
-      ))}
-    </div>
-  );
+export function CaseListSkeleton({ variant = 'default' }: { variant?: 'default' | 'admin' }) {
+  const cols = variant === 'admin' ? 5 : 4;
+  return <SkeletonTable rows={6} cols={cols} className="mt-6" />;
 }

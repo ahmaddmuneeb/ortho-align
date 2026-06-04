@@ -9,8 +9,10 @@ import { ProductionSection } from '../components/case/ProductionSection';
 import { PrescriptionForm } from '../components/PrescriptionForm';
 import { StatusBadge } from '../components/StatusBadge';
 import { patientInputClass } from '../components/PatientForm';
+import { Alert, Button, SkeletonCaseDetail, SkeletonForm } from '../components/ui';
 import { useAppSelector } from '../store/hooks';
 import { api, ApiError } from '../lib/api';
+import { MAX, sanitizeText } from '../lib/sanitize';
 import { toast } from '../lib/toast';
 import { formatDisplayDate } from '../lib/patientDates';
 import type { CaseRecord, Prescription, PrescriptionInput } from '../types/case';
@@ -72,7 +74,7 @@ export function CaseDetailPage() {
     setSavingNotes(true);
     try {
       const data = await api.patch<{ case: CaseRecord }>(`/api/cases/${id}/notes`, {
-        notes,
+        notes: sanitizeText(notes, { maxLength: MAX.notes, multiline: true }),
       });
       setCaseRecord(data.case);
     } catch (err) {
@@ -108,15 +110,11 @@ export function CaseDetailPage() {
     ['PENDING_PAYMENT', 'PENDING_APPROVAL'].includes(caseRecord.status);
 
   if (loading) {
-    return <p className="text-muted">Loading case…</p>;
+    return <SkeletonCaseDetail sections={5} />;
   }
 
   if (error || !caseRecord) {
-    return (
-      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-        {error ?? 'Case not found'}
-      </p>
-    );
+    return <Alert variant="error">{error ?? 'Case not found'}</Alert>;
   }
 
   return (
@@ -172,14 +170,16 @@ export function CaseDetailPage() {
           rows={3}
           className={`mt-3 ${patientInputClass}`}
         />
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={saveNotes}
-          disabled={savingNotes}
-          className="mt-3 rounded-md border border-slate-200 px-4 py-2 text-sm hover:border-brand-500 disabled:opacity-60"
+          loading={savingNotes}
+          loadingText="Saving…"
+          className="mt-3"
         >
-          {savingNotes ? 'Saving…' : 'Save notes'}
-        </button>
+          Save notes
+        </Button>
       </section>
 
       <PaymentSection caseRecord={caseRecord} onCaseUpdate={setCaseRecord} />
@@ -190,7 +190,9 @@ export function CaseDetailPage() {
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-ink">Prescription</h2>
         {prescription === undefined ? (
-          <p className="mt-4 text-sm text-muted">Loading…</p>
+          <div className="mt-4">
+            <SkeletonForm fields={3} />
+          </div>
         ) : (
           <div className="mt-4">
             <PrescriptionForm

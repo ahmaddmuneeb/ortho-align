@@ -1,19 +1,35 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import {
+  Activity,
+  Clock,
+  FileText,
+  Layers,
+  MessageSquare,
+  Settings2,
+} from 'lucide-react';
 import { patientInputClass } from './PatientForm';
-import { ToothSelectionField } from './ToothSelectionField';
-import { parseTeethArray, validateTeethList } from '../lib/toothNotation';
+import { Alert, Button } from './ui';
+import { parseTeethArray, validateTeethList, type ToothFieldKey } from '../lib/toothNotation';
+import { MAX, sanitizeText } from '../lib/sanitize';
 import { toast } from '../lib/toast';
-import type {
-  AlignmentGoal,
-  MidlinePosition,
-  Prescription,
-  PrescriptionInput,
-  ProcedureOption,
-} from '../types/case';
+import { Odontogram } from './prescription/Odontogram';
+import { ToothSummaryChips } from './prescription/ToothSummaryChips';
+import { AlignmentGoalPickerGrid } from './prescription/AlignmentGoalPicker';
+import { ProcedureOptionPicker } from './prescription/ProcedureOptionPicker';
+import { MidlineVisualSection } from './prescription/MidlineVisualSection';
+import { RelationshipVisualSection } from './prescription/RelationshipVisualSection';
+import { ClinicalPhotosCallout } from './prescription/ClinicalPhotosCallout';
+import type { Prescription, PrescriptionInput, ProcedureOption } from '../types/case';
 
-const GOALS: AlignmentGoal[] = ['MAINTAIN', 'IMPROVE', 'IDEALIZE'];
-const PROCEDURES: ProcedureOption[] = ['YES', 'NO', 'ONLY_IF_NEEDED'];
-const MIDLINE: MidlinePosition[] = ['CENTERED', 'SHIFTED_RIGHT', 'SHIFTED_LEFT'];
+type AlignmentGoalKey =
+  | 'upperMidlineGoal'
+  | 'lowerMidlineGoal'
+  | 'overjetGoal'
+  | 'overbiteGoal'
+  | 'archFormGoal'
+  | 'canineRelationshipGoal'
+  | 'molarRelationshipGoal'
+  | 'posteriorRelationshipGoal';
 
 export function prescriptionToForm(p?: Prescription | null): PrescriptionInput {
   return {
@@ -52,6 +68,28 @@ export function prescriptionToForm(p?: Prescription | null): PrescriptionInput {
   };
 }
 
+const ALIGNMENT_FIELDS = [
+  { key: 'upperMidlineGoal', label: 'Upper midline' },
+  { key: 'lowerMidlineGoal', label: 'Lower midline' },
+  { key: 'overjetGoal', label: 'Overjet' },
+  { key: 'overbiteGoal', label: 'Overbite' },
+  { key: 'archFormGoal', label: 'Arch form' },
+  { key: 'canineRelationshipGoal', label: 'Canine' },
+  { key: 'molarRelationshipGoal', label: 'Molar' },
+  { key: 'posteriorRelationshipGoal', label: 'Posterior' },
+] as const satisfies readonly { key: AlignmentGoalKey; label: string }[];
+
+const PROCEDURE_FIELDS: { key: keyof PrescriptionInput; label: string }[] = [
+  { key: 'iprOption', label: 'IPR' },
+  { key: 'engagersOption', label: 'Engagers' },
+  { key: 'proclineOption', label: 'Procline' },
+  { key: 'expandOption', label: 'Expand' },
+  { key: 'distalizeOption', label: 'Distalize' },
+];
+
+const cardClass = 'rounded-xl border border-slate-200 bg-white p-5 shadow-sm';
+const sectionTitleClass = 'flex items-center gap-2 text-sm font-semibold text-ink';
+
 interface PrescriptionFormProps {
   initial?: Prescription | null;
   onSubmit: (data: PrescriptionInput) => Promise<void>;
@@ -77,6 +115,15 @@ export function PrescriptionForm({
     setValues((v) => ({ ...v, [key]: val }));
   };
 
+  const setTeethField = (field: ToothFieldKey, teeth: number[]) => {
+    set(field, teeth);
+  };
+
+  const removeTooth = (field: ToothFieldKey, tooth: number) => {
+    const list = values[field] ?? [];
+    set(field, list.filter((t) => t !== tooth));
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (readOnly) return;
@@ -98,16 +145,35 @@ export function PrescriptionForm({
     try {
       await onSubmit({
         ...values,
-        chiefComplaint: values.chiefComplaint.trim(),
-        canineRelationshipRight: values.canineRelationshipRight?.trim() || null,
-        canineRelationshipLeft: values.canineRelationshipLeft?.trim() || null,
-        molarRelationshipRight: values.molarRelationshipRight?.trim() || null,
-        molarRelationshipLeft: values.molarRelationshipLeft?.trim() || null,
+        chiefComplaint: sanitizeText(values.chiefComplaint, {
+          maxLength: MAX.chiefComplaint,
+          multiline: true,
+        }),
+        canineRelationshipRight:
+          sanitizeText(values.canineRelationshipRight, {
+            maxLength: MAX.relationship,
+          }) || null,
+        canineRelationshipLeft:
+          sanitizeText(values.canineRelationshipLeft, {
+            maxLength: MAX.relationship,
+          }) || null,
+        molarRelationshipRight:
+          sanitizeText(values.molarRelationshipRight, {
+            maxLength: MAX.relationship,
+          }) || null,
+        molarRelationshipLeft:
+          sanitizeText(values.molarRelationshipLeft, {
+            maxLength: MAX.relationship,
+          }) || null,
         avoidEngagersTeeth: values.avoidEngagersTeeth ?? [],
         extractTeeth: values.extractTeeth ?? [],
         leaveSpacesTeeth: values.leaveSpacesTeeth ?? [],
         doNotMoveTeeth: values.doNotMoveTeeth ?? [],
-        additionalInstructions: values.additionalInstructions?.trim() || null,
+        additionalInstructions:
+          sanitizeText(values.additionalInstructions, {
+            maxLength: MAX.instructions,
+            multiline: true,
+          }) || null,
       });
       toast.success('Prescription saved');
     } catch (err) {
@@ -119,239 +185,82 @@ export function PrescriptionForm({
     }
   };
 
-  const selectClass = patientInputClass;
+  const pictorial = !readOnly;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-          {error}
-        </p>
-      )}
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {error && <Alert variant="error">{error}</Alert>}
 
-      <label className="block text-sm font-medium text-slate-700">
-        Chief complaint <span className="text-red-500">*</span>
-        <textarea
-          required
-          minLength={10}
-          disabled={readOnly}
-          value={values.chiefComplaint}
-          onChange={(e) => set('chiefComplaint', e.target.value)}
-          rows={3}
-          className={patientInputClass}
-          placeholder="At least 10 characters"
-        />
-      </label>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            disabled={readOnly}
-            checked={values.treatUpperArch}
-            onChange={(e) => set('treatUpperArch', e.target.checked)}
+      <div className={cardClass}>
+        <h3 className={sectionTitleClass}>
+          <MessageSquare className="h-4 w-4 text-brand-600" aria-hidden />
+          Chief complaint {!readOnly && <span className="text-red-500">*</span>}
+        </h3>
+        {readOnly ? (
+          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+            {values.chiefComplaint || '—'}
+          </p>
+        ) : (
+          <textarea
+            required
+            minLength={10}
+            value={values.chiefComplaint}
+            onChange={(e) => set('chiefComplaint', e.target.value)}
+            rows={3}
+            className={`${patientInputClass} mt-3`}
+            placeholder="Describe the patient's main concern (at least 10 characters)"
           />
-          Treat upper arch
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            disabled={readOnly}
-            checked={values.treatLowerArch}
-            onChange={(e) => set('treatLowerArch', e.target.checked)}
-          />
-          Treat lower arch
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            disabled={readOnly}
-            checked={values.durationRecommended}
-            onChange={(e) => set('durationRecommended', e.target.checked)}
-          />
-          Recommended duration
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            disabled={readOnly}
-            checked={values.includeRetainer}
-            onChange={(e) => set('includeRetainer', e.target.checked)}
-          />
-          Include retainer
-        </label>
+        )}
       </div>
 
-      {!values.durationRecommended && (
-        <label className="block text-sm font-medium text-slate-700">
-          Duration limit (steps)
-          <input
-            type="number"
-            min={1}
-            disabled={readOnly}
-            value={values.durationLimitSteps ?? ''}
-            onChange={(e) =>
-              set('durationLimitSteps', e.target.value ? Number(e.target.value) : null)
-            }
-            className={patientInputClass}
-          />
-        </label>
-      )}
+      {pictorial && <ClinicalPhotosCallout />}
 
-      <fieldset className="rounded-lg border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-medium text-slate-700">Alignment goals</legend>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+      <div className={cardClass}>
+        <h3 className={sectionTitleClass}>
+          <Layers className="h-4 w-4 text-brand-600" aria-hidden />
+          Arches & duration
+        </h3>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {(
             [
-              ['upperMidlineGoal', 'Upper midline'],
-              ['lowerMidlineGoal', 'Lower midline'],
-              ['overjetGoal', 'Overjet'],
-              ['overbiteGoal', 'Overbite'],
-              ['archFormGoal', 'Arch form'],
-              ['canineRelationshipGoal', 'Canine'],
-              ['molarRelationshipGoal', 'Molar'],
-              ['posteriorRelationshipGoal', 'Posterior'],
+              ['treatUpperArch', 'Treat upper arch'],
+              ['treatLowerArch', 'Treat lower arch'],
+              ['durationRecommended', 'Recommended duration'],
+              ['includeRetainer', 'Include retainer'],
             ] as const
           ).map(([key, label]) => (
-            <label key={key} className="block text-xs text-muted">
-              {label}
-              <select
-                disabled={readOnly}
-                value={values[key]}
-                onChange={(e) => set(key, e.target.value as AlignmentGoal)}
-                className={selectClass}
-              >
-                {GOALS.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="rounded-lg border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-medium text-slate-700">Procedures</legend>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          {(
-            [
-              ['iprOption', 'IPR'],
-              ['engagersOption', 'Engagers'],
-              ['proclineOption', 'Procline'],
-              ['expandOption', 'Expand'],
-              ['distalizeOption', 'Distalize'],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="block text-xs text-muted">
-              {label}
-              <select
-                disabled={readOnly}
-                value={values[key]}
-                onChange={(e) => set(key, e.target.value as ProcedureOption)}
-                className={selectClass}
-              >
-                {PROCEDURES.map((p) => (
-                  <option key={p} value={p}>
-                    {p.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="rounded-lg border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-medium text-slate-700">
-          Existing condition — relationships
-        </legend>
-        <p className="mb-3 text-xs text-muted">
-          Optional free text (e.g. Class I, Class II) for current canine and molar relationships.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(
-            [
-              ['canineRelationshipRight', 'Canine (right)'],
-              ['canineRelationshipLeft', 'Canine (left)'],
-              ['molarRelationshipRight', 'Molar (right)'],
-              ['molarRelationshipLeft', 'Molar (left)'],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="block text-xs text-muted">
-              {label}
+            <label
+              key={key}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm ${
+                values[key]
+                  ? 'border-brand-200 bg-brand-50 text-brand-900'
+                  : 'border-slate-200 bg-slate-50/50'
+              }`}
+            >
               <input
-                type="text"
+                type="checkbox"
                 disabled={readOnly}
-                value={values[key] ?? ''}
-                onChange={(e) => set(key, e.target.value)}
-                placeholder="e.g. Class I"
-                className={patientInputClass}
+                checked={Boolean(values[key])}
+                onChange={(e) => set(key, e.target.checked)}
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
               />
+              {label}
             </label>
           ))}
         </div>
-      </fieldset>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-medium text-slate-700">
-          Upper midline
-          <select
-            disabled={readOnly}
-            value={values.upperMidlinePosition}
-            onChange={(e) => set('upperMidlinePosition', e.target.value as MidlinePosition)}
-            className={selectClass}
-          >
-            {MIDLINE.map((m) => (
-              <option key={m} value={m}>
-                {m.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm font-medium text-slate-700">
-          Lower midline
-          <select
-            disabled={readOnly}
-            value={values.lowerMidlinePosition}
-            onChange={(e) => set('lowerMidlinePosition', e.target.value as MidlinePosition)}
-            className={selectClass}
-          >
-            {MIDLINE.map((m) => (
-              <option key={m} value={m}>
-                {m.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
-        </label>
-        {values.upperMidlinePosition !== 'CENTERED' && (
-          <label className="block text-sm font-medium text-slate-700">
-            Upper midline shift (mm)
+        {!values.durationRecommended && (
+          <label className="mt-3 block text-sm font-medium text-slate-700">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-4 w-4 text-muted" aria-hidden />
+              Duration limit (steps)
+            </span>
             <input
               type="number"
-              min={0.1}
-              step={0.1}
+              min={1}
               disabled={readOnly}
-              value={values.upperMidlineShiftMm ?? ''}
+              value={values.durationLimitSteps ?? ''}
               onChange={(e) =>
-                set('upperMidlineShiftMm', e.target.value ? Number(e.target.value) : null)
-              }
-              className={patientInputClass}
-            />
-          </label>
-        )}
-        {values.lowerMidlinePosition !== 'CENTERED' && (
-          <label className="block text-sm font-medium text-slate-700">
-            Lower midline shift (mm)
-            <input
-              type="number"
-              min={0.1}
-              step={0.1}
-              disabled={readOnly}
-              value={values.lowerMidlineShiftMm ?? ''}
-              onChange={(e) =>
-                set('lowerMidlineShiftMm', e.target.value ? Number(e.target.value) : null)
+                set('durationLimitSteps', e.target.value ? Number(e.target.value) : null)
               }
               className={patientInputClass}
             />
@@ -359,79 +268,141 @@ export function PrescriptionForm({
         )}
       </div>
 
-      <fieldset className="rounded-xl border border-teal-200 bg-gradient-to-b from-teal-50/80 to-white p-4 shadow-sm">
-        <legend className="px-1 text-sm font-semibold text-teal-900">
-          Tooth-specific instructions
-        </legend>
-        <p id="tooth-notation-help" className="mb-4 text-xs text-teal-800/90">
-          Use <strong>universal tooth numbering 1–32</strong> (not FDI 11–48). Enter comma- or
-          space-separated numbers, then Add teeth. Upper right 1 → upper left 16 → lower left 17 →
-          lower right 32.
-        </p>
-        <div className="space-y-3">
-          <ToothSelectionField
-            id="avoid-engagers-teeth"
-            label="Avoid engagers"
-            description="Teeth where attachments should not be placed."
-            teeth={values.avoidEngagersTeeth ?? []}
-            onChange={(t) => set('avoidEngagersTeeth', t)}
-            readOnly={readOnly}
-          />
-          <ToothSelectionField
-            id="extract-teeth"
-            label="Extract"
-            description="Teeth planned for extraction before or during treatment."
-            teeth={values.extractTeeth ?? []}
-            onChange={(t) => set('extractTeeth', t)}
-            readOnly={readOnly}
-          />
-          <ToothSelectionField
-            id="leave-spaces-teeth"
-            label="Leave spaces"
-            description="Teeth where spaces should be maintained."
-            teeth={values.leaveSpacesTeeth ?? []}
-            onChange={(t) => set('leaveSpacesTeeth', t)}
-            readOnly={readOnly}
-          />
-          <ToothSelectionField
-            id="do-not-move-teeth"
-            label="Do not move"
-            description="Teeth that should not be moved during aligner therapy."
-            teeth={values.doNotMoveTeeth ?? []}
-            onChange={(t) => set('doNotMoveTeeth', t)}
+      <div className={`${cardClass} border-teal-100 bg-gradient-to-b from-teal-50/50 to-white`}>
+        <h3 className={sectionTitleClass}>
+          <Activity className="h-4 w-4 text-brand-600" aria-hidden />
+          Alignment goals
+        </h3>
+        <div className="mt-4">
+          <AlignmentGoalPickerGrid
+            fields={ALIGNMENT_FIELDS}
+            values={{
+              upperMidlineGoal: values.upperMidlineGoal ?? 'IMPROVE',
+              lowerMidlineGoal: values.lowerMidlineGoal ?? 'IMPROVE',
+              overjetGoal: values.overjetGoal ?? 'IMPROVE',
+              overbiteGoal: values.overbiteGoal ?? 'IMPROVE',
+              archFormGoal: values.archFormGoal ?? 'IMPROVE',
+              canineRelationshipGoal: values.canineRelationshipGoal ?? 'IMPROVE',
+              molarRelationshipGoal: values.molarRelationshipGoal ?? 'MAINTAIN',
+              posteriorRelationshipGoal: values.posteriorRelationshipGoal ?? 'MAINTAIN',
+            }}
+            onChange={(key, v) => set(key, v)}
             readOnly={readOnly}
           />
         </div>
-      </fieldset>
+      </div>
 
-      <label className="block text-sm font-medium text-slate-700">
-        Additional instructions
-        <textarea
-          disabled={readOnly}
-          value={values.additionalInstructions ?? ''}
-          onChange={(e) => set('additionalInstructions', e.target.value)}
-          rows={2}
-          className={patientInputClass}
-        />
-      </label>
+      <div className={cardClass}>
+        <h3 className={sectionTitleClass}>
+          <Settings2 className="h-4 w-4 text-brand-600" aria-hidden />
+          Procedures
+        </h3>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {PROCEDURE_FIELDS.map(({ key, label }) => (
+            <ProcedureOptionPicker
+              key={key}
+              label={label}
+              value={values[key] as ProcedureOption}
+              onChange={(v) => set(key, v)}
+              readOnly={readOnly}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className={cardClass}>
+        <h3 className={sectionTitleClass}>Existing relationships</h3>
+        <p className="mt-1 text-xs text-muted">
+          Current canine and molar relationships (optional).
+        </p>
+        <div className="mt-3">
+          <RelationshipVisualSection
+            canineRelationshipRight={values.canineRelationshipRight ?? ''}
+            canineRelationshipLeft={values.canineRelationshipLeft ?? ''}
+            molarRelationshipRight={values.molarRelationshipRight ?? ''}
+            molarRelationshipLeft={values.molarRelationshipLeft ?? ''}
+            onChange={(key, v) => set(key as keyof PrescriptionInput, v)}
+            readOnly={readOnly}
+          />
+        </div>
+      </div>
+
+      <div className={cardClass}>
+        <h3 className={sectionTitleClass}>Midline position</h3>
+        <div className="mt-3">
+          <MidlineVisualSection
+            upperPosition={values.upperMidlinePosition ?? 'CENTERED'}
+            upperShiftMm={values.upperMidlineShiftMm}
+            lowerPosition={values.lowerMidlinePosition ?? 'CENTERED'}
+            lowerShiftMm={values.lowerMidlineShiftMm}
+            onUpperPosition={(p) => set('upperMidlinePosition', p)}
+            onUpperShift={(mm) => set('upperMidlineShiftMm', mm)}
+            onLowerPosition={(p) => set('lowerMidlinePosition', p)}
+            onLowerShift={(mm) => set('lowerMidlineShiftMm', mm)}
+            readOnly={readOnly}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-teal-200 bg-gradient-to-b from-teal-50/80 to-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-teal-900">Tooth-specific instructions</h3>
+        <p className="mt-1 text-xs text-teal-800/90">
+          Universal numbering <strong>1–32</strong>
+          {pictorial
+            ? ' — select a category, then tap teeth on the chart.'
+            : ' — summary of marked teeth.'}
+        </p>
+        <div className="mt-4">
+          <Odontogram
+            avoidEngagersTeeth={values.avoidEngagersTeeth ?? []}
+            extractTeeth={values.extractTeeth ?? []}
+            leaveSpacesTeeth={values.leaveSpacesTeeth ?? []}
+            doNotMoveTeeth={values.doNotMoveTeeth ?? []}
+            readOnly={readOnly}
+            onChange={setTeethField}
+          />
+        </div>
+        <div className="mt-4 border-t border-teal-100 pt-4">
+          <ToothSummaryChips
+            avoidEngagersTeeth={values.avoidEngagersTeeth ?? []}
+            extractTeeth={values.extractTeeth ?? []}
+            leaveSpacesTeeth={values.leaveSpacesTeeth ?? []}
+            doNotMoveTeeth={values.doNotMoveTeeth ?? []}
+            readOnly={readOnly}
+            onRemove={readOnly ? undefined : removeTooth}
+          />
+        </div>
+      </div>
+
+      <div className={cardClass}>
+        <h3 className={sectionTitleClass}>
+          <FileText className="h-4 w-4 text-brand-600" aria-hidden />
+          Additional instructions
+        </h3>
+        {readOnly ? (
+          <p className="mt-2 text-sm text-slate-700">
+            {values.additionalInstructions || '—'}
+          </p>
+        ) : (
+          <textarea
+            value={values.additionalInstructions ?? ''}
+            onChange={(e) => set('additionalInstructions', e.target.value)}
+            rows={2}
+            className={`${patientInputClass} mt-3`}
+            placeholder="Optional notes for the design team"
+          />
+        )}
+      </div>
 
       {!readOnly && (
         <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-          >
-            {submitting ? 'Saving…' : 'Save prescription'}
-          </button>
+          <Button type="submit" loading={submitting} loadingText="Saving…">
+            Save prescription
+          </Button>
           {onDelete && initial && (
-            <button
-              type="button"
-              onClick={() => onDelete()}
-              className="rounded-md border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50"
-            >
+            <Button type="button" variant="danger" onClick={() => onDelete()}>
               Remove prescription
-            </button>
+            </Button>
           )}
         </div>
       )}

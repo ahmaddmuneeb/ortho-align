@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CaseList, CaseListSkeleton } from '../../components/CaseList';
+import { Alert } from '../../components/ui';
 import { CLIENT_STATUS_FILTERS } from '../../lib/caseStatus';
 import { api, ApiError } from '../../lib/api';
+import { usePagination } from '../../lib/usePagination';
 import type { CaseRecord, CaseStatus } from '../../types/case';
 
 export function PatientCasesPage() {
-  const [cases, setCases] = useState<CaseRecord[]>([]);
+  const [allCases, setAllCases] = useState<CaseRecord[]>([]);
   const [statusFilter, setStatusFilter] = useState<'' | CaseStatus>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -16,12 +18,8 @@ export function PatientCasesPage() {
       setLoading(true);
       try {
         const data = await api.get<{ cases: CaseRecord[] }>('/api/patient/cases');
-        const all = data.cases ?? [];
-        const filtered = statusFilter
-          ? all.filter((c) => c.status === statusFilter)
-          : all;
         if (!cancelled) {
-          setCases(filtered);
+          setAllCases(data.cases ?? []);
           setError(null);
         }
       } catch (err) {
@@ -35,7 +33,24 @@ export function PatientCasesPage() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter]);
+  }, []);
+
+  const cases = useMemo(
+    () =>
+      statusFilter
+        ? allCases.filter((c) => c.status === statusFilter)
+        : allCases,
+    [allCases, statusFilter],
+  );
+
+  const {
+    page,
+    pageSize,
+    totalItems,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(cases, [statusFilter]);
 
   return (
     <div>
@@ -61,13 +76,23 @@ export function PatientCasesPage() {
 
       {loading && <CaseListSkeleton />}
       {error && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-6">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
       {!loading && !error && (
         <div className="mt-6">
-          <CaseList cases={cases} detailPath={(id) => `/patient/cases/${id}`} />
+          <CaseList
+            cases={paginatedItems}
+            detailPath={(id) => `/patient/cases/${id}`}
+            pagination={{
+              page,
+              pageSize,
+              totalItems,
+              onPageChange: setPage,
+              onPageSizeChange: setPageSize,
+            }}
+          />
         </div>
       )}
     </div>

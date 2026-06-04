@@ -1,7 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { patientInputClass } from '../../components/PatientForm';
+import { Alert, Button } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
+import {
+  MAX,
+  sanitizeEmail,
+  sanitizePassword,
+  sanitizeText,
+} from '../../lib/sanitize';
 import { toast } from '../../lib/toast';
 
 type EmployeeType = 'DESIGNER' | 'QC' | 'BOTH';
@@ -24,7 +31,12 @@ export function AdminEmployeeNewPage() {
       const data = await api.post<{
         user: { id: string; email: string; name: string };
         temporaryPassword?: string;
-      }>('/api/users/employees', { email, password, name, employeeType });
+      }>('/api/users/employees', {
+        email: sanitizeEmail(email),
+        password: sanitizePassword(password),
+        name: sanitizeText(name, { maxLength: MAX.name }),
+        employeeType,
+      });
       setTempPassword(data.temporaryPassword ?? password);
       toast.success('Employee created');
     } catch (err) {
@@ -64,9 +76,9 @@ export function AdminEmployeeNewPage() {
         className="mt-6 max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
         {error && (
-          <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-            {error}
-          </p>
+          <div className="mb-4">
+            <Alert variant="error">{error}</Alert>
+          </div>
         )}
 
         <label className="block text-sm font-medium text-slate-700">
@@ -112,13 +124,14 @@ export function AdminEmployeeNewPage() {
           </select>
         </label>
 
-        <button
+        <Button
           type="submit"
-          disabled={submitting}
-          className="mt-6 w-full rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          loading={submitting}
+          loadingText="Creating…"
+          className="mt-6 w-full"
         >
-          {submitting ? 'Creating…' : 'Create employee'}
-        </button>
+          Create employee
+        </Button>
       </form>
     </div>
   );

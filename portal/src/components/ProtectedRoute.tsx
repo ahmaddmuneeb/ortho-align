@@ -1,4 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import { Skeleton } from './ui/Skeleton';
 import { useAppSelector } from '../store/hooks';
 import type { UserRole } from '../types/auth';
 
@@ -11,8 +12,13 @@ export function ProtectedRoute({ roles }: ProtectedRouteProps) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-muted">
-        Loading…
+      <div
+        className="flex min-h-screen flex-col items-center justify-center gap-3"
+        aria-busy="true"
+        aria-label="Loading session"
+      >
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <Skeleton className="h-4 w-32" />
       </div>
     );
   }

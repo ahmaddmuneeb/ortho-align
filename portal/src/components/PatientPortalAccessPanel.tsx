@@ -1,6 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { patientInputClass } from './PatientForm';
+import { Alert, Button } from './ui';
 import { api, ApiError } from '../lib/api';
+import {
+  MAX,
+  sanitizeEmail,
+  sanitizePassword,
+  sanitizeText,
+} from '../lib/sanitize';
 import { toast } from '../lib/toast';
 import type { CreatePatientAccountResponse } from '../types/patientPortal';
 
@@ -28,7 +35,12 @@ export function PatientPortalAccessPanel({
     try {
       const data = await api.post<CreatePatientAccountResponse>(
         '/api/users/patient-accounts',
-        { patientId, email, password, name: name.trim() },
+        {
+          patientId,
+          email: sanitizeEmail(email),
+          password: sanitizePassword(password),
+          name: sanitizeText(name, { maxLength: MAX.name }),
+        },
       );
       setCreated(data);
       setOpen(false);
@@ -77,11 +89,7 @@ export function PatientPortalAccessPanel({
 
       {open && (
         <form onSubmit={handleSubmit} className="mt-4 max-w-md space-y-4">
-          {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <Alert variant="error">{error}</Alert>}
           <label className="block text-sm font-medium text-slate-700">
             Display name
             <input
@@ -113,24 +121,20 @@ export function PatientPortalAccessPanel({
             />
           </label>
           <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
-              {submitting ? 'Creating…' : 'Create account'}
-            </button>
-            <button
+            <Button type="submit" loading={submitting} loadingText="Creating…">
+              Create account
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
               disabled={submitting}
               onClick={() => {
                 setOpen(false);
                 setError(null);
               }}
-              className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       )}

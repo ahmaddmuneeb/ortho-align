@@ -33,6 +33,13 @@ export interface PatientCreatePayload {
   dateOfBirth?: string | null;
   address?: string | null;
   notes?: string | null;
+  /** ADMIN only — CLIENT user who owns the patient record */
+  createdById?: string;
+}
+
+export interface PatientDeleteResponse {
+  message: string;
+  deletedCaseCount: number;
 }
 
 export type PatientUpdatePayload = Partial<PatientCreatePayload>;

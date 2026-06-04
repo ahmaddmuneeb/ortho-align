@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Save, Trash2 } from 'lucide-react';
 import { patientInputClass } from '../../components/PatientForm';
+import { Alert, Button } from '../../components/ui';
+import { SkeletonForm } from '../../components/ui/Skeleton';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setUser as setAuthUser } from '../../store/slices/authSlice';
 import { api, ApiError } from '../../lib/api';
+import {
+  MAX,
+  sanitizePhone,
+  sanitizeText,
+  sanitizeUrl,
+} from '../../lib/sanitize';
 import { toast } from '../../lib/toast';
 import type { AdminUser } from '../../types/case';
 import type { EmployeeType, Gender, UserRole } from '../../types/auth';
@@ -80,7 +89,7 @@ export function AdminUserDetailPage() {
     setError(null);
     try {
       const body: Record<string, unknown> = {
-        name: name.trim(),
+        name: sanitizeText(name, { maxLength: MAX.name }),
         role,
       };
       if (role === 'EMPLOYEE') {
@@ -88,11 +97,12 @@ export function AdminUserDetailPage() {
       }
       if (role === 'CLIENT') {
         body.gender = gender;
-        body.region = region.trim() || null;
-        body.phone = phone.trim();
-        body.website = website.trim() || null;
-        body.businessAddress = businessAddress.trim();
-        body.hearAboutUs = hearAboutUs.trim() || null;
+        body.region = sanitizeText(region, { maxLength: MAX.region }) || null;
+        body.phone = sanitizePhone(phone);
+        body.website = sanitizeUrl(website) || null;
+        body.businessAddress = sanitizeText(businessAddress, { maxLength: MAX.address });
+        body.hearAboutUs =
+          sanitizeText(hearAboutUs, { maxLength: MAX.hearAboutUs }) || null;
       }
       const data = await api.patch<{ user: AdminUser }>(`/api/users/${id}`, body);
       setUser(data.user);
@@ -149,23 +159,19 @@ export function AdminUserDetailPage() {
   };
 
   if (loading) {
-    return <p className="text-muted">Loading user…</p>;
+    return (
+      <div className="max-w-2xl">
+        <SkeletonForm fields={5} />
+      </div>
+    );
   }
 
   if (error && !user) {
-    return (
-      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-        {error}
-      </p>
-    );
+    return <Alert variant="error">{error}</Alert>;
   }
 
   if (!user) {
-    return (
-      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-        User not found
-      </p>
-    );
+    return <Alert variant="error">User not found</Alert>;
   }
 
   const isSelf = currentUser?.id === user.id;
@@ -197,9 +203,9 @@ export function AdminUserDetailPage() {
       </div>
 
       {error && (
-        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <div className="mt-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       <form
@@ -327,22 +333,28 @@ export function AdminUserDetailPage() {
         )}
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <button
+          <Button
             type="submit"
-            disabled={saving}
-            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            loading={saving}
+            loadingText="Saving…"
+            className="inline-flex gap-2"
           >
-            {saving ? 'Saving…' : 'Save changes'}
-          </button>
-          <button
+            <Save className="h-4 w-4" />
+            Save changes
+          </Button>
+          <Button
             type="button"
-            disabled={deleting || isSelf}
+            variant="danger"
+            loading={deleting}
+            loadingText="Deleting…"
+            disabled={isSelf}
             onClick={handleDelete}
             title={isSelf ? 'Cannot delete your own account' : undefined}
-            className="rounded-md border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex gap-2"
           >
-            {deleting ? 'Deleting…' : 'Delete user'}
-          </button>
+            <Trash2 className="h-4 w-4" />
+            Delete user
+          </Button>
         </div>
         {isSelf && (
           <p className="mt-2 text-xs text-muted">
