@@ -7,14 +7,15 @@ import { PrescriptionForm } from '../../components/PrescriptionForm';
 import { FileUpload } from '../../components/FileUpload';
 import { StatusBadge } from '../../components/StatusBadge';
 import { patientInputClass } from '../../components/PatientForm';
-import { getEmployeeHomePath, useAuth } from '../../context/AuthContext';
+import { getEmployeeHomePath } from '../../lib/routes';
+import { useAppSelector } from '../../store/hooks';
 import { api, ApiError } from '../../lib/api';
 import { toast } from '../../lib/toast';
 import type { CaseRecord, Prescription } from '../../types/case';
 
 export function EmployeeCaseDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const user = useAppSelector((s) => s.auth.user);
   const [caseRecord, setCaseRecord] = useState<CaseRecord | null>(null);
   const [prescription, setPrescription] = useState<Prescription | null | undefined>(
     undefined,

@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { authenticate, authorize, authorizeEmployee } from '../middleware/auth';
+import { authenticate, authorize, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { CaseService } from '../services/case.service';
 import { WorkflowService } from '../services/workflow.service';
@@ -8,7 +8,9 @@ import './cases.swagger';
 
 const router = Router();
 
-router.post('/', authenticate, authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+router.use(authenticate, denyPatient);
+
+router.post('/', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { patientId, notes } = req.body;
 
@@ -32,7 +34,7 @@ router.post('/', authenticate, authorize(UserRole.CLIENT, UserRole.ADMIN), async
   }
 });
 
-router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const filters: any = {};
 
@@ -67,7 +69,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
   }
 });
 
-router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
 
@@ -99,7 +101,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promis
   }
 });
 
-router.patch('/:id/notes', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/:id/notes', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
     const { notes } = req.body;
@@ -130,7 +132,7 @@ router.patch('/:id/notes', authenticate, async (req: AuthRequest, res: Response)
   }
 });
 
-router.post('/:id/assign', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/:id/assign', authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
     const { designerId, qcId } = req.body;
@@ -156,7 +158,7 @@ router.post('/:id/assign', authenticate, authorize(UserRole.ADMIN), async (req: 
   }
 });
 
-router.post('/:id/transition', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/:id/transition', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
     const { status, note } = req.body;
@@ -184,7 +186,7 @@ router.post('/:id/transition', authenticate, async (req: AuthRequest, res: Respo
   }
 });
 
-router.get('/:id/available-transitions', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id/available-transitions', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
 

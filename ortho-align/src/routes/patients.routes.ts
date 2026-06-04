@@ -1,10 +1,12 @@
 import { Router, Response } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import prisma from '../lib/prisma';
 import { UserRole, Gender } from '@prisma/client';
 
 const router = Router();
+
+router.use(authenticate, denyPatient);
 
 /**
  * @swagger
@@ -70,7 +72,7 @@ const router = Router();
  *       403:
  *         description: Forbidden - insufficient permissions
  */
-router.post('/', authenticate, authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { name, gender, dateOfBirth, address, notes } = req.body;
 
@@ -134,7 +136,7 @@ router.post('/', authenticate, authorize(UserRole.CLIENT, UserRole.ADMIN), async
  *       401:
  *         description: Unauthorized
  */
-router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const whereClause: any = {};
 
@@ -207,7 +209,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
  *       404:
  *         description: Patient not found
  */
-router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
 
@@ -332,7 +334,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promis
  *       404:
  *         description: Patient not found
  */
-router.patch('/:id', authenticate, authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/:id', authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
     const { name, gender, dateOfBirth, address, notes } = req.body;

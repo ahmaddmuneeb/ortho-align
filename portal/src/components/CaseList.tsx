@@ -6,13 +6,17 @@ interface CaseListProps {
   cases: CaseRecord[];
   detailPath: (id: string) => string;
   emptyMessage?: string;
+  /** Show client doctor and short case id (admin list) */
+  variant?: 'default' | 'admin';
 }
 
 export function CaseList({
   cases,
   detailPath,
   emptyMessage = 'No cases found.',
+  variant = 'default',
 }: CaseListProps) {
+  const isAdmin = variant === 'admin';
   if (cases.length === 0) {
     return (
       <p className="px-6 py-8 text-center text-sm text-muted">{emptyMessage}</p>
@@ -27,6 +31,8 @@ export function CaseList({
             <tr>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Patient</th>
+              {isAdmin && <th className="px-4 py-3">Client</th>}
+              {isAdmin && <th className="px-4 py-3">Case ID</th>}
               <th className="px-4 py-3">Updated</th>
             </tr>
           </thead>
@@ -44,6 +50,16 @@ export function CaseList({
                     {c.patient?.name ?? c.patientId}
                   </Link>
                 </td>
+                {isAdmin && (
+                  <td className="px-4 py-3 text-muted">
+                    {c.createdBy?.name ?? '—'}
+                  </td>
+                )}
+                {isAdmin && (
+                  <td className="px-4 py-3 font-mono text-xs text-muted">
+                    {c.id.slice(0, 8)}…
+                  </td>
+                )}
                 <td className="px-4 py-3 text-muted">
                   {new Date(c.updatedAt ?? c.createdAt).toLocaleDateString()}
                 </td>
@@ -66,6 +82,12 @@ export function CaseList({
                 </p>
                 <StatusBadge status={c.status} />
               </div>
+              {isAdmin && c.createdBy && (
+                <p className="mt-1 text-xs text-muted">Client: {c.createdBy.name}</p>
+              )}
+              {isAdmin && (
+                <p className="mt-0.5 font-mono text-xs text-muted">ID: {c.id.slice(0, 12)}…</p>
+              )}
               <p className="mt-1 text-xs text-muted">
                 Updated {new Date(c.updatedAt ?? c.createdAt).toLocaleDateString()}
               </p>

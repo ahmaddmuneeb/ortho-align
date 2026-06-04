@@ -5,6 +5,7 @@ import { config } from '../config';
 import prisma from '../lib/prisma';
 import { UserRole, EmployeeType, Gender } from '@prisma/client';
 import { validatePassword, validateEmail, validatePhone } from '../lib/validation';
+import { authenticateOptional } from '../middleware/auth';
 
 const router = Router();
 
@@ -191,9 +192,11 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Role validation
-    if (!Object.values(UserRole).includes(role)) {
-      res.status(400).json({ error: 'Invalid role' });
+    // Role validation — only CLIENT may self-register
+    if (role !== UserRole.CLIENT) {
+      res.status(400).json({
+        error: 'Only CLIENT accounts can self-register. Patient portal accounts are created by your clinic.',
+      });
       return;
     }
 
@@ -295,6 +298,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
  *       - CLIENT: Doctors who create cases
  *       - EMPLOYEE: Designers and QC specialists
  *       - ADMIN: System administrators
+ *       - PATIENT: Patient portal (accounts created by ADMIN)
  *     security: []
  *     requestBody:
  *       required: true
@@ -330,6 +334,11 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
  *               value:
  *                 email: admin@orthoalign.com
  *                 password: Admin123!
+ *             patientLogin:
+ *               summary: PATIENT portal login
+ *               value:
+ *                 email: patient.john@example.com
+ *                 password: password123
  *     responses:
  *       200:
  *         description: Login successful
@@ -423,6 +432,41 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Log out (stateless JWT)
+ *     description: |
+ *       Acknowledges logout for API clients. Authentication uses stateless JWTs (7-day expiry);
+ *       there is no server-side session store. The client must discard the access token after
+ *       calling this endpoint (and clear local storage).
+ *
+ *       An optional `Authorization: Bearer` header may be sent; invalid or missing tokens still
+ *       receive `200` so logout is idempotent from the client perspective.
+ *
+ *       **Future:** A token blocklist (e.g. Redis) could be added here to revoke tokens before expiry.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Logged out
+ */
+router.post('/logout', authenticateOptional, (_req: Request, res: Response): void => {
+  // Stateless JWT: no server session to destroy. Client discards token.
+  // Future: tokenBlocklist.add(jti) when blocklist is implemented.
+  res.json({ message: 'Logged out' });
 });
 
 export default router;

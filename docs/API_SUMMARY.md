@@ -18,7 +18,8 @@
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
 | POST | `/api/auth/register` | — | CLIENT self-register only |
-| POST | `/api/auth/login` | — | Returns `{ token, user }` |
+| POST | `/api/auth/login` | — | Returns `{ token, user }` (CLIENT, EMPLOYEE, ADMIN, PATIENT) |
+| POST | `/api/auth/logout` | Optional JWT | Stateless logout; client discards token |
 
 ## Dashboard
 
@@ -99,15 +100,29 @@
 | POST | `/api/payments/:id/fail` | ADMIN | Mark FAILED (`reason?`) |
 | POST | `/api/payments/webhook` | — | External gateway (no portal UI) |
 
+## Patient portal
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | `/api/patient/me` | PATIENT | User + linked patient record |
+| GET | `/api/patient/cases` | PATIENT | Read-only list for linked patient |
+| GET | `/api/patient/cases/:id` | PATIENT | Case detail if owned by linked patient |
+| GET | `/api/patient/cases/:id/files` | PATIENT | Case files (download URLs) |
+| GET | `/api/patient/cases/:id/comments` | PATIENT | Non-internal comments only |
+
+PATIENT role cannot access `/api/cases`, `/api/patients`, employee, designer, or QC routes.
+
 ## Users
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| GET | `/api/users/me` | JWT | Current user profile |
+| GET | `/api/users/me` | JWT | Current user profile; includes `patient` when role is PATIENT |
+| PATCH | `/api/users/me` | JWT | Self-service profile (CLIENT: name/phone/website/address; others: name) |
 | GET | `/api/users` | ADMIN | List users (`?role`, `?employeeType`) |
 | GET | `/api/users/employees` | ADMIN | List employees (`?type=`) |
 | GET | `/api/users/:id` | ADMIN | User detail |
 | POST | `/api/users/employees` | ADMIN | Create employee |
+| POST | `/api/users/patient-accounts` | ADMIN | Create PATIENT user linked to existing Patient (`patientId`, email, password, name) |
 | PATCH | `/api/users/:id` | ADMIN | Update name, role, employeeType |
 | DELETE | `/api/users/:id` | ADMIN | Cannot delete self |
 

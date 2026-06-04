@@ -18,6 +18,7 @@ import dashboardRoutes from './routes/dashboard.routes';
 import employeeRoutes from './routes/employee.routes';
 import designerRoutes from './routes/designer.routes';
 import qcRoutes from './routes/qc.routes';
+import patientPortalRoutes from './routes/patient.routes';
 
 const app: Application = express();
 
@@ -54,6 +55,7 @@ app.use('/api/cases', productionRoutes);
 app.use('/api/cases', commentsRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/patient', patientPortalRoutes);
 app.use('/api/employee', employeeRoutes);
 app.use('/api/designer', designerRoutes);
 app.use('/api/qc', qcRoutes);

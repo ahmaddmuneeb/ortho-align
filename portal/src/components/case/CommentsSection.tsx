@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAppSelector } from '../../store/hooks';
 import { api, ApiError } from '../../lib/api';
 import { toast } from '../../lib/toast';
 import { patientInputClass } from '../PatientForm';
@@ -10,14 +10,18 @@ interface CommentsSectionProps {
   caseId: string;
   canPost?: boolean;
   showInternal?: boolean;
+  /** Override GET comments URL (e.g. patient portal). */
+  commentsApiBase?: string;
 }
 
 export function CommentsSection({
   caseId,
   canPost = true,
   showInternal = false,
+  commentsApiBase,
 }: CommentsSectionProps) {
-  const { user } = useAuth();
+  const commentsUrl = commentsApiBase ?? `/api/cases/${caseId}/comments`;
+  const user = useAppSelector((s) => s.auth.user);
   const [comments, setComments] = useState<CaseComment[]>([]);
   const [text, setText] = useState('');
   const [isInternal, setIsInternal] = useState(false);
@@ -27,9 +31,7 @@ export function CommentsSection({
 
   const load = useCallback(async () => {
     try {
-      const data = await api.get<{ comments: CaseComment[] }>(
-        `/api/cases/${caseId}/comments`,
-      );
+      const data = await api.get<{ comments: CaseComment[] }>(commentsUrl);
       setComments(data.comments ?? []);
       setError(null);
     } catch (err) {
@@ -37,7 +39,7 @@ export function CommentsSection({
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [commentsUrl]);
 
   useEffect(() => {
     load();

@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ApiError, getRoleHomePath, useAuth } from '../context/AuthContext';
 import { AuthLayout } from '../components/Layout';
+import { ApiError } from '../lib/api';
+import { getRoleHomePath } from '../lib/routes';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { register as registerThunk } from '../store/slices/authSlice';
 import type { Gender } from '../types/auth';
 
 const GENDERS: { value: Gender; label: string }[] = [
@@ -11,7 +14,8 @@ const GENDERS: { value: Gender; label: string }[] = [
 ];
 
 export function RegisterPage() {
-  const { register, user, token, loading } = useAuth();
+  const { user, token, loading } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -28,18 +32,20 @@ export function RegisterPage() {
     setSubmitting(true);
     const form = new FormData(e.currentTarget);
     try {
-      await register({
-        email: String(form.get('email')),
-        password: String(form.get('password')),
-        name: String(form.get('name')),
-        role: 'CLIENT',
-        gender: form.get('gender') as Gender,
-        region: String(form.get('region')),
-        phone: String(form.get('phone')),
-        website: String(form.get('website') || '') || undefined,
-        businessAddress: String(form.get('businessAddress')),
-        hearAboutUs: String(form.get('hearAboutUs')),
-      });
+      await dispatch(
+        registerThunk({
+          email: String(form.get('email')),
+          password: String(form.get('password')),
+          name: String(form.get('name')),
+          role: 'CLIENT',
+          gender: form.get('gender') as Gender,
+          region: String(form.get('region')),
+          phone: String(form.get('phone')),
+          website: String(form.get('website') || '') || undefined,
+          businessAddress: String(form.get('businessAddress')),
+          hearAboutUs: String(form.get('hearAboutUs')),
+        }),
+      ).unwrap();
       navigate('/login', {
         replace: true,
         state: { message: 'Account created. Please sign in.' },
@@ -70,6 +76,9 @@ export function RegisterPage() {
         <h2 className="text-lg font-semibold text-ink">Create practice account</h2>
         <p className="mt-1 text-sm text-muted">
           OrthoAlign PAYG · CLIENT registration (doctors)
+        </p>
+        <p className="mt-2 rounded-md bg-brand-50 px-3 py-2 text-xs text-brand-800">
+          Patient portal logins are created by your clinic administrator, not on this page.
         </p>
 
         {error && (

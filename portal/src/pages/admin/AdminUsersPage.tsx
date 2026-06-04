@@ -1,18 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { patientInputClass } from '../../components/PatientForm';
 import { api, ApiError } from '../../lib/api';
 import type { AdminUser } from '../../types/case';
+import type { UserRole } from '../../types/auth';
+
+const ROLES: { value: '' | UserRole; label: string }[] = [
+  { value: '', label: 'All roles' },
+  { value: 'CLIENT', label: 'Client' },
+  { value: 'EMPLOYEE', label: 'Employee' },
+  { value: 'ADMIN', label: 'Admin' },
+];
 
 export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [roleFilter, setRoleFilter] = useState<'' | UserRole>('');
+  const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const data = await api.get<{ users: AdminUser[] }>('/api/users');
+        const qs = roleFilter ? `?role=${encodeURIComponent(roleFilter)}` : '';
+        const data = await api.get<{ users: AdminUser[] }>(`/api/users${qs}`);
         if (!cancelled) setUsers(data.users ?? []);
       } catch (err) {
         if (!cancelled) {
@@ -25,7 +39,17 @@ export function AdminUsersPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [roleFilter]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q),
+    );
+  }, [users, search]);
 
   return (
     <div>
@@ -42,6 +66,33 @@ export function AdminUsersPage() {
         </Link>
       </div>
 
+      <div className="mt-6 flex flex-wrap gap-3">
+        <label className="flex min-w-[10rem] flex-1 flex-col text-sm font-medium text-slate-700 sm:max-w-xs">
+          Search
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Name or email…"
+            className={patientInputClass}
+          />
+        </label>
+        <label className="flex min-w-[10rem] flex-col text-sm font-medium text-slate-700 sm:max-w-[12rem]">
+          Role
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as '' | UserRole)}
+            className={patientInputClass}
+          >
+            {ROLES.map((r) => (
+              <option key={r.value || 'all'} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {loading && <p className="mt-6 text-muted">Loading…</p>}
       {error && (
         <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
@@ -51,8 +102,10 @@ export function AdminUsersPage() {
 
       {!loading && !error && (
         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          {users.length === 0 ? (
-            <p className="px-6 py-8 text-center text-sm text-muted">No users.</p>
+          {filtered.length === 0 ? (
+            <p className="px-6 py-8 text-center text-sm text-muted">
+              {users.length === 0 ? 'No users.' : 'No users match your search.'}
+            </p>
           ) : (
             <>
               <table className="hidden w-full text-left text-sm md:table">
@@ -65,7 +118,7 @@ export function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {users.map((u) => (
+                  {filtered.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-50/80">
                       <td className="px-4 py-3 font-medium">
                         <Link
@@ -83,7 +136,7 @@ export function AdminUsersPage() {
                 </tbody>
               </table>
               <ul className="divide-y divide-slate-100 md:hidden">
-                {users.map((u) => (
+                {filtered.map((u) => (
                   <li key={u.id} className="px-4 py-3">
                     <Link
                       to={`/admin/users/${u.id}`}

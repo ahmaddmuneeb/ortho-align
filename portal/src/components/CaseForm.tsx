@@ -7,9 +7,17 @@ interface CaseFormProps {
   onSubmit: (patientId: string, notes: string) => Promise<void>;
   onCancel: () => void;
   apiError?: string | null;
+  /** Override option text (e.g. show client name for admin) */
+  patientLabel?: (patient: Patient) => string;
 }
 
-export function CaseForm({ patients, onSubmit, onCancel, apiError }: CaseFormProps) {
+export function CaseForm({
+  patients,
+  onSubmit,
+  onCancel,
+  apiError,
+  patientLabel,
+}: CaseFormProps) {
   const [patientId, setPatientId] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -49,7 +57,7 @@ export function CaseForm({ patients, onSubmit, onCancel, apiError }: CaseFormPro
           <option value="">Select patient…</option>
           {patients.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name}
+              {patientLabel ? patientLabel(p) : p.name}
             </option>
           ))}
         </select>

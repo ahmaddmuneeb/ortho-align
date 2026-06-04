@@ -1,11 +1,13 @@
 import { Router, Response } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { UserRole } from '@prisma/client';
 import { PrescriptionService } from '../services/prescription.service';
 import { CaseService } from '../services/case.service';
 
 const router = Router();
+
+router.use(authenticate, denyPatient);
 
 /**
  * @swagger
@@ -49,7 +51,6 @@ const router = Router();
  */
 router.post(
   '/:id/prescription',
-  authenticate,
   authorize(UserRole.CLIENT, UserRole.ADMIN),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -108,7 +109,7 @@ router.post(
  *       404:
  *         description: Case or prescription not found
  */
-router.get('/:id/prescription', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id/prescription', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const caseId = req.params.id as string;
 
@@ -181,7 +182,6 @@ router.get('/:id/prescription', authenticate, async (req: AuthRequest, res: Resp
  */
 router.delete(
   '/:id/prescription',
-  authenticate,
   authorize(UserRole.CLIENT, UserRole.ADMIN),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {

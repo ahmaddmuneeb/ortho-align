@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { UserRole, FileCategory } from '@prisma/client';
 import { S3Service } from '../services/s3.service';
@@ -8,6 +8,8 @@ import { CaseFileService } from '../services/case-file.service';
 import { CaseService } from '../services/case.service';
 
 const router = Router();
+
+router.use(authenticate, denyPatient);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -78,7 +80,6 @@ const upload = multer({
  */
 router.post(
   '/:id/files',
-  authenticate,
   authorize(UserRole.CLIENT, UserRole.ADMIN),
   upload.array('files', 10),
   async (req: AuthRequest, res: Response): Promise<void> => {
@@ -201,7 +202,7 @@ router.post(
  *       404:
  *         description: Case not found
  */
-router.get('/:id/files', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id/files', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const caseId = req.params.id as string;
     const categoryParam = req.query.category as string | undefined;
@@ -289,7 +290,6 @@ router.get('/:id/files', authenticate, async (req: AuthRequest, res: Response): 
  */
 router.delete(
   '/:id/files/:fileId',
-  authenticate,
   authorize(UserRole.CLIENT, UserRole.ADMIN),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {

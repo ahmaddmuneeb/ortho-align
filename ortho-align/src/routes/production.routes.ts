@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
-import { authenticate, authorizeEmployee } from '../middleware/auth';
+import { authenticate, authorizeEmployee, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { UserRole, EmployeeType, FileCategory } from '@prisma/client';
 import { S3Service } from '../services/s3.service';
@@ -9,6 +9,8 @@ import { ProductionService } from '../services/production.service';
 import { CaseService } from '../services/case.service';
 
 const router = Router();
+
+router.use(authenticate, denyPatient);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -59,7 +61,6 @@ const upload = multer({
  */
 router.post(
   '/:id/production/files',
-  authenticate,
   authorizeEmployee(EmployeeType.DESIGNER, EmployeeType.BOTH),
   upload.array('files', 10),
   async (req: AuthRequest, res: Response): Promise<void> => {
@@ -169,7 +170,6 @@ router.post(
  */
 router.post(
   '/:id/production/urls',
-  authenticate,
   authorizeEmployee(EmployeeType.DESIGNER, EmployeeType.BOTH),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -233,7 +233,7 @@ router.post(
  *       404:
  *         description: Case not found
  */
-router.get('/:id/production/urls', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id/production/urls', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const caseId = req.params.id as string;
 
@@ -296,7 +296,6 @@ router.get('/:id/production/urls', authenticate, async (req: AuthRequest, res: R
  */
 router.delete(
   '/:id/production/urls/:urlId',
-  authenticate,
   authorizeEmployee(EmployeeType.DESIGNER, EmployeeType.BOTH),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {

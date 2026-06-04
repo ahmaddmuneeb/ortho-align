@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAppSelector } from '../store/hooks';
 import type { UserRole } from '../types/auth';
 
 interface ProtectedRouteProps {
@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ roles }: ProtectedRouteProps) {
-  const { user, token, loading } = useAuth();
+  const { user, token, loading } = useAppSelector((s) => s.auth);
 
   if (loading) {
     return (

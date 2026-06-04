@@ -3,11 +3,28 @@ import bcrypt from 'bcrypt';
 import { authenticate, authorize } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import prisma from '../lib/prisma';
-import { UserRole, EmployeeType } from '@prisma/client';
-import { validatePassword, validateEmail } from '../lib/validation';
+import { UserRole, EmployeeType, Gender } from '@prisma/client';
+import { validatePassword, validateEmail, validatePhone } from '../lib/validation';
+import { PatientPortalService } from '../services/patient-portal.service';
 import './users.swagger';
 
 const router = Router();
+
+const userProfileSelect = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  employeeType: true,
+  gender: true,
+  region: true,
+  phone: true,
+  website: true,
+  businessAddress: true,
+  hearAboutUs: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 /**
  * @swagger
@@ -190,6 +207,129 @@ router.post('/employees', authenticate, authorize(UserRole.ADMIN), async (req: A
   }
 });
 
+/**
+ * @swagger
+ * /api/users/patient-accounts:
+ *   post:
+ *     tags: [Users]
+ *     summary: Create patient portal account (ADMIN only)
+ *     description: |
+ *       Links a new PATIENT-role user to an existing Patient record for read-only portal access.
+ *       Patients cannot self-register; the clinic admin creates accounts.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - patientId
+ *               - email
+ *               - password
+ *               - name
+ *             properties:
+ *               patientId:
+ *                 type: string
+ *                 example: clx456def
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: patient.john@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 8
+ *               name:
+ *                 type: string
+ *                 example: John Smith
+ *     responses:
+ *       201:
+ *         description: Patient portal account created
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - admin only
+ *       404:
+ *         description: Patient not found
+ *       409:
+ *         description: Email exists or patient already has portal access
+ */
+router.post('/patient-accounts', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { patientId, email, password, name } = req.body;
+
+    if (!patientId || !email || !password || !name) {
+      res.status(400).json({ error: 'Missing required fields: patientId, email, password, name' });
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      res.status(400).json({ error: 'Invalid email format' });
+      return;
+    }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      res.status(400).json({
+        error: 'Password does not meet requirements',
+        details: passwordValidation.errors,
+      });
+      return;
+    }
+
+    const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+    if (!patient) {
+      res.status(404).json({ error: 'Patient not found' });
+      return;
+    }
+
+    if (patient.userId) {
+      res.status(409).json({ error: 'Patient already has portal access' });
+      return;
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      res.status(409).json({ error: 'User with this email already exists' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name,
+        role: UserRole.PATIENT,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    await prisma.patient.update({
+      where: { id: patientId },
+      data: { userId: user.id },
+    });
+
+    res.status(201).json({
+      user,
+      patient: { id: patient.id, name: patient.name },
+      temporaryPassword: password,
+    });
+  } catch (error) {
+    console.error('Create patient account error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const role = req.query.role as UserRole | undefined;
@@ -205,15 +345,7 @@ router.get('/', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest
 
     const users = await prisma.user.findMany({
       where: whereClause,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        employeeType: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userProfileSelect,
       orderBy: {
         createdAt: 'desc',
       },
@@ -263,19 +395,17 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        employeeType: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userProfileSelect,
     });
 
     if (!user) {
       res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (user.role === UserRole.PATIENT) {
+      const patient = await PatientPortalService.getLinkedPatient(req.user!.id);
+      res.json({ user, patient });
       return;
     }
 
@@ -286,21 +416,81 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
   }
 });
 
+router.patch('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+    });
+
+    if (!existingUser) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const { name, phone, website, businessAddress } = req.body;
+    const updateData: Record<string, unknown> = {};
+
+    if (name !== undefined) {
+      if (typeof name !== 'string' || !name.trim()) {
+        res.status(400).json({ error: 'Name is required' });
+        return;
+      }
+      updateData.name = name.trim();
+    }
+
+    if (existingUser.role === UserRole.CLIENT) {
+      if (phone !== undefined) {
+        if (typeof phone !== 'string' || !validatePhone(phone)) {
+          res.status(400).json({ error: 'Invalid phone number format' });
+          return;
+        }
+        updateData.phone = phone;
+      }
+      if (website !== undefined) {
+        updateData.website =
+          typeof website === 'string' && website.trim() ? website.trim() : null;
+      }
+      if (businessAddress !== undefined) {
+        if (typeof businessAddress !== 'string' || !businessAddress.trim()) {
+          res.status(400).json({ error: 'Business address is required' });
+          return;
+        }
+        updateData.businessAddress = businessAddress.trim();
+      }
+    } else if (
+      phone !== undefined ||
+      website !== undefined ||
+      businessAddress !== undefined
+    ) {
+      res.status(400).json({ error: 'Only name can be updated for your account' });
+      return;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' });
+      return;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: updateData,
+      select: userProfileSelect,
+    });
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Update current user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:id', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
 
     const user = await prisma.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        employeeType: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userProfileSelect,
     });
 
     if (!user) {
@@ -318,7 +508,17 @@ router.get('/:id', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequ
 router.patch('/:id', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const { name, role, employeeType } = req.body;
+    const {
+      name,
+      role,
+      employeeType,
+      gender,
+      region,
+      phone,
+      website,
+      businessAddress,
+      hearAboutUs,
+    } = req.body;
 
     const existingUser = await prisma.user.findUnique({
       where: { id },
@@ -339,23 +539,51 @@ router.patch('/:id', authenticate, authorize(UserRole.ADMIN), async (req: AuthRe
       return;
     }
 
-    const updateData: any = {};
+    const effectiveRole = role ?? existingUser.role;
+    const updateData: Record<string, unknown> = {};
     if (name) updateData.name = name;
     if (role) updateData.role = role;
     if (employeeType !== undefined) updateData.employeeType = employeeType;
 
+    if (effectiveRole === UserRole.CLIENT) {
+      if (gender !== undefined) {
+        if (gender && !Object.values(Gender).includes(gender)) {
+          res.status(400).json({ error: 'Invalid gender. Must be MALE, FEMALE, or OTHER' });
+          return;
+        }
+        updateData.gender = gender || null;
+      }
+      if (region !== undefined) updateData.region = region || null;
+      if (phone !== undefined) {
+        if (typeof phone !== 'string' || !validatePhone(phone)) {
+          res.status(400).json({ error: 'Invalid phone number format' });
+          return;
+        }
+        updateData.phone = phone;
+      }
+      if (website !== undefined) {
+        updateData.website =
+          typeof website === 'string' && website.trim() ? website.trim() : null;
+      }
+      if (businessAddress !== undefined) {
+        if (typeof businessAddress !== 'string' || !businessAddress.trim()) {
+          res.status(400).json({ error: 'Business address is required' });
+          return;
+        }
+        updateData.businessAddress = businessAddress.trim();
+      }
+      if (hearAboutUs !== undefined) updateData.hearAboutUs = hearAboutUs || null;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' });
+      return;
+    }
+
     const user = await prisma.user.update({
       where: { id },
       data: updateData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        employeeType: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userProfileSelect,
     });
 
     res.json({ user });

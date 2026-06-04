@@ -116,8 +116,8 @@ export class CommentService {
   static async getCaseComments(caseId: string, userRole: UserRole) {
     const whereClause: any = { caseId };
     
-    // Clients can only see external comments
-    if (userRole === UserRole.CLIENT) {
+    // Clients and patients can only see external comments
+    if (userRole === UserRole.CLIENT || userRole === UserRole.PATIENT) {
       whereClause.isInternal = false;
     }
     
@@ -204,6 +204,14 @@ export class CommentService {
     // Client can access their own cases
     if (userRole === UserRole.CLIENT && caseRecord.createdById === userId) {
       return true;
+    }
+
+    if (userRole === UserRole.PATIENT) {
+      const patient = await prisma.patient.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+      return Boolean(patient && caseRecord.patientId === patient.id);
     }
 
     // Employee can access if they are designer or QC

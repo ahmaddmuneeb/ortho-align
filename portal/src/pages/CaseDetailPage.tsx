@@ -9,7 +9,7 @@ import { ProductionSection } from '../components/case/ProductionSection';
 import { PrescriptionForm } from '../components/PrescriptionForm';
 import { StatusBadge } from '../components/StatusBadge';
 import { patientInputClass } from '../components/PatientForm';
-import { useAuth } from '../context/AuthContext';
+import { useAppSelector } from '../store/hooks';
 import { api, ApiError } from '../lib/api';
 import { toast } from '../lib/toast';
 import { formatDisplayDate } from '../lib/patientDates';
@@ -17,7 +17,7 @@ import type { CaseRecord, Prescription, PrescriptionInput } from '../types/case'
 
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const user = useAppSelector((s) => s.auth.user);
   const [caseRecord, setCaseRecord] = useState<CaseRecord | null>(null);
   const [prescription, setPrescription] = useState<Prescription | null | undefined>(
     undefined,

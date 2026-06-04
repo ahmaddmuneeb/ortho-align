@@ -1,4 +1,4 @@
-export type UserRole = 'CLIENT' | 'ADMIN' | 'EMPLOYEE';
+export type UserRole = 'CLIENT' | 'ADMIN' | 'EMPLOYEE' | 'PATIENT';
 export type EmployeeType = 'DESIGNER' | 'QC' | 'BOTH' | null;
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 
@@ -8,6 +8,12 @@ export interface AuthUser {
   name: string;
   role: UserRole;
   employeeType: EmployeeType;
+  gender?: Gender | null;
+  region?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  businessAddress?: string | null;
+  hearAboutUs?: string | null;
 }
 
 export interface LoginResponse {

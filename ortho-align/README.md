@@ -4,7 +4,7 @@ A comprehensive Node.js application for managing dental cases with a multi-stage
 
 ## Features
 
-- **Role-Based Access Control**: Three user types (Client, Admin, Employee)
+- **Role-Based Access Control**: Client, Admin, Employee, and Patient portal users
 - **Employee Types**: Designer, QC, or Both
 - **Multi-Stage Case Workflow**: From payment through design, QC, and client approval
 - **Patient Management**: Clients can manage multiple patients
@@ -152,7 +152,8 @@ PENDING_PAYMENT → OPENED → ASSIGNED → IN_DESIGN → PENDING_QC
 ### Authentication
 
 - `POST /api/auth/register` - Register a new user
-- `POST /api/auth/login` - Login and get JWT token
+- `POST /api/auth/login` - Login and get JWT token (7-day expiry)
+- `POST /api/auth/logout` - Acknowledge logout (stateless JWT; client discards token)
 
 ### Patients
 
@@ -180,18 +181,31 @@ PENDING_PAYMENT → OPENED → ASSIGNED → IN_DESIGN → PENDING_QC
 - `POST /api/payments/:id/fail` - Mark payment as failed (Admin)
 - `POST /api/payments/webhook` - Payment webhook handler
 
+### Patient portal (PATIENT role)
+
+- `GET /api/patient/me` - Current user and linked patient record
+- `GET /api/patient/cases` - Read-only cases for linked patient
+- `GET /api/patient/cases/:id` - Case detail (if owned by linked patient)
+- `GET /api/patient/cases/:id/files` - Case files with download URLs
+- `GET /api/patient/cases/:id/comments` - Non-internal comments only
+
 ### Users
 
 - `GET /api/users` - List all users (Admin only)
 - `GET /api/users/employees` - List employees (Admin only)
-- `GET /api/users/me` - Get current user
+- `POST /api/users/employees` - Create employee (Admin only)
+- `POST /api/users/patient-accounts` - Create patient portal account linked to Patient (Admin only)
+- `GET /api/users/me` - Get current user (`patient` included when role is PATIENT)
+- `PATCH /api/users/me` - Update own profile
 - `GET /api/users/:id` - Get user by ID (Admin only)
 - `PATCH /api/users/:id` - Update user (Admin only)
 - `DELETE /api/users/:id` - Delete user (Admin only)
 
 ## Authentication
 
-All endpoints (except `/api/auth/register`, `/api/auth/login`, and `/api/payments/webhook`) require authentication.
+Stateless JWT sessions: there is no server-side session store. Logout returns `{ message: "Logged out" }`; revocation is handled by the client removing the token (a token blocklist may be added later).
+
+All endpoints (except `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, and `/api/payments/webhook`) require authentication.
 
 Include the JWT token in the Authorization header:
 

@@ -17,6 +17,7 @@ enum UserRole {
   CLIENT
   ADMIN
   EMPLOYEE
+  PATIENT
 }
 
 enum EmployeeType {
@@ -96,7 +97,7 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  createdPatients      Patient[]
+  createdPatients      Patient[]           @relation("PatientCreator")
   createdCases         Case[]              @relation("CaseCreator")
   assignedAsDesigner   Case[]              @relation("CaseDesigner")
   assignedAsQC         Case[]              @relation("CaseQC")
@@ -106,6 +107,7 @@ model User {
   workflowLogs         CaseWorkflowLog[]
   comments             CaseComment[]
   productionUrls       CaseProductionUrl[]
+  portalPatient        Patient?            @relation("PatientPortalUser")
 
   @@map("users")
 }
@@ -118,9 +120,11 @@ model Patient {
   address     String?
   notes       String?
   createdById String
+  userId      String?  @unique
   createdAt   DateTime @default(now())
 
-  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy  User  @relation("PatientCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  portalUser User? @relation("PatientPortalUser", fields: [userId], references: [id], onDelete: SetNull)
   cases     Case[]
 
   @@map("patients")

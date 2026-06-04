@@ -1,22 +1,28 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { getEmployeeHomePath, useAuth } from '../context/AuthContext';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { getEmployeeHomePath } from '../lib/routes';
+import { toast } from '../lib/toast';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { logoutAsync } from '../store/slices/authSlice';
 import type { AuthUser } from '../types/auth';
 
 type NavItem = { to: string; label: string };
 
 function navForUser(user: AuthUser): NavItem[] {
+  const profile: NavItem = { to: '/profile', label: 'Profile' };
   switch (user.role) {
     case 'CLIENT':
       return [
         { to: '/dashboard', label: 'Dashboard' },
         { to: '/patients', label: 'Patients' },
         { to: '/cases', label: 'Cases' },
+        profile,
       ];
     case 'ADMIN':
       return [
         { to: '/admin', label: 'Dashboard' },
         { to: '/admin/cases', label: 'Cases' },
         { to: '/admin/users', label: 'Users' },
+        profile,
       ];
     case 'EMPLOYEE': {
       const home = getEmployeeHomePath(user.employeeType);
@@ -27,10 +33,11 @@ function navForUser(user: AuthUser): NavItem[] {
           { to: '/employee/qc', label: 'QC' },
         );
       }
+      items.push(profile);
       return items;
     }
     default:
-      return [];
+      return [profile];
   }
 }
 
@@ -48,12 +55,14 @@ function portalSubtitle(role: AuthUser['role']): string {
 }
 
 export function PortalLayout() {
-  const { user, logout } = useAuth();
+  const user = useAppSelector((s) => s.auth.user);
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const nav = user ? navForUser(user) : [];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await dispatch(logoutAsync());
+    toast.success('Signed out');
     navigate('/login');
   };
 
@@ -89,7 +98,20 @@ export function PortalLayout() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-muted sm:inline">{user?.name}</span>
+            {user?.role === 'ADMIN' && (
+              <Link
+                to="/admin/cases/new"
+                className="hidden rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 sm:inline-block"
+              >
+                New case
+              </Link>
+            )}
+            <Link
+              to="/profile"
+              className="hidden text-sm text-muted hover:text-brand-700 sm:inline"
+            >
+              {user?.name}
+            </Link>
             <button
               type="button"
               onClick={handleLogout}

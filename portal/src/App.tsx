@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PortalLayout } from './components/Layout';
-import { useAuth, getRoleHomePath, getEmployeeHomePath } from './context/AuthContext';
+import { getEmployeeHomePath, getRoleHomePath } from './lib/routes';
+import { useAppSelector } from './store/hooks';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -18,17 +19,23 @@ import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminUserDetailPage } from './pages/admin/AdminUserDetailPage';
 import { AdminEmployeeNewPage } from './pages/admin/AdminEmployeeNewPage';
 import { AdminCasesPage } from './pages/admin/AdminCasesPage';
+import { AdminCaseNewPage } from './pages/admin/AdminCaseNewPage';
 import { AdminCaseDetailPage } from './pages/admin/AdminCaseDetailPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { PatientLayout } from './components/PatientLayout';
+import { PatientDashboardPage } from './pages/patient/PatientDashboardPage';
+import { PatientCasesPage } from './pages/patient/PatientCasesPage';
+import { PatientCaseDetailPage } from './pages/patient/PatientCaseDetailPage';
 
 function HomeRedirect() {
-  const { user, token, loading } = useAuth();
+  const { user, token, loading } = useAppSelector((s) => s.auth);
   if (loading) return null;
   if (!user || !token) return <Navigate to="/login" replace />;
   return <Navigate to={getRoleHomePath(user)} replace />;
 }
 
 function EmployeeHomeRedirect() {
-  const { user, token } = useAuth();
+  const { user, token } = useAppSelector((s) => s.auth);
   if (!user || !token) return <Navigate to="/login" replace />;
   return <Navigate to={getEmployeeHomePath(user.employeeType)} replace />;
 }
@@ -39,6 +46,12 @@ export default function App() {
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<PortalLayout />}>
+          <Route path="/profile" element={<ProfilePage />} />
+        </Route>
+      </Route>
 
       <Route element={<ProtectedRoute roles={['CLIENT']} />}>
         <Route element={<PortalLayout />}>
@@ -61,6 +74,15 @@ export default function App() {
         </Route>
       </Route>
 
+      <Route element={<ProtectedRoute roles={['PATIENT']} />}>
+        <Route element={<PatientLayout />}>
+          <Route path="/patient/dashboard" element={<PatientDashboardPage />} />
+          <Route path="/patient/cases" element={<PatientCasesPage />} />
+          <Route path="/patient/cases/:id" element={<PatientCaseDetailPage />} />
+          <Route path="/patient/profile" element={<ProfilePage />} />
+        </Route>
+      </Route>
+
       <Route element={<ProtectedRoute roles={['ADMIN']} />}>
         <Route element={<PortalLayout />}>
           <Route path="/admin" element={<AdminDashboardPage />} />
@@ -68,6 +90,7 @@ export default function App() {
           <Route path="/admin/users/new" element={<AdminEmployeeNewPage />} />
           <Route path="/admin/users/:id" element={<AdminUserDetailPage />} />
           <Route path="/admin/cases" element={<AdminCasesPage />} />
+          <Route path="/admin/cases/new" element={<AdminCaseNewPage />} />
           <Route path="/admin/cases/:id" element={<AdminCaseDetailPage />} />
         </Route>
       </Route>

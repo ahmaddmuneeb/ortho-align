@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { PaymentService } from '../services/payment.service';
 import { UserRole } from '@prisma/client';
@@ -7,7 +7,7 @@ import './payments.swagger';
 
 const router = Router();
 
-router.post('/', authenticate, authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', authenticate, denyPatient, authorize(UserRole.CLIENT, UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { caseId, amount, externalId } = req.body;
 
@@ -36,7 +36,7 @@ router.post('/', authenticate, authorize(UserRole.CLIENT, UserRole.ADMIN), async
   }
 });
 
-router.get('/case/:caseId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/case/:caseId', authenticate, denyPatient, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const caseId = req.params.caseId as string;
 
@@ -49,7 +49,7 @@ router.get('/case/:caseId', authenticate, async (req: AuthRequest, res: Response
   }
 });
 
-router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id', authenticate, denyPatient, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
 
@@ -67,7 +67,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promis
   }
 });
 
-router.post('/:id/complete', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/:id/complete', authenticate, denyPatient, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
 
@@ -82,7 +82,7 @@ router.post('/:id/complete', authenticate, authorize(UserRole.ADMIN), async (req
   }
 });
 
-router.post('/:id/fail', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/:id/fail', authenticate, denyPatient, authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
     const { reason } = req.body;

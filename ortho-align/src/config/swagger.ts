@@ -38,7 +38,7 @@ const options: swaggerJsdoc.Options = {
             id: { type: 'string', example: 'clx123abc' },
             email: { type: 'string', format: 'email', example: 'user@example.com' },
             name: { type: 'string', example: 'John Doe' },
-            role: { type: 'string', enum: ['CLIENT', 'ADMIN', 'EMPLOYEE'], example: 'CLIENT' },
+            role: { type: 'string', enum: ['CLIENT', 'ADMIN', 'EMPLOYEE', 'PATIENT'], example: 'CLIENT' },
             employeeType: { type: 'string', enum: ['DESIGNER', 'QC', 'BOTH'], nullable: true, example: null },
             gender: { type: 'string', enum: ['MALE', 'FEMALE', 'OTHER'], nullable: true, example: 'MALE' },
             region: { type: 'string', nullable: true, example: 'North America' },
@@ -339,6 +339,10 @@ const options: swaggerJsdoc.Options = {
       {
         name: 'Users',
         description: 'User management (Admin only)',
+      },
+      {
+        name: 'Patient Portal',
+        description: 'Read-only patient portal for linked patient records',
       },
     ],
   },

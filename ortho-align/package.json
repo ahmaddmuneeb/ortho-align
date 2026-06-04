@@ -4,7 +4,8 @@
   "description": "OrthoAlign Case Management System - A Node.js application for managing dental cases with workflow tracking",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "prisma generate && ts-node-dev --respawn --transpile-only src/index.ts",
+    "postinstall": "prisma generate",
     "build": "tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",

@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CaseList, CaseListSkeleton } from '../../components/CaseList';
 import { EMPLOYEE_STATUS_FILTERS } from '../../lib/caseStatus';
-import { useAuth } from '../../context/AuthContext';
+import { useAppSelector } from '../../store/hooks';
 import { api, ApiError } from '../../lib/api';
 import type { CaseRecord, CaseStatus } from '../../types/case';
 
 export function EmployeeQueuePage() {
-  const { user } = useAuth();
+  const user = useAppSelector((s) => s.auth.user);
   const location = useLocation();
   const isQcRoute = location.pathname.includes('/qc');
   const [cases, setCases] = useState<CaseRecord[]>([]);

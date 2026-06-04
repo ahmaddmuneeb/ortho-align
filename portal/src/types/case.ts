@@ -200,6 +200,12 @@ export interface AdminUser {
   name: string;
   role: string;
   employeeType?: string | null;
+  gender?: string | null;
+  region?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  businessAddress?: string | null;
+  hearAboutUs?: string | null;
   createdAt: string;
   updatedAt?: string;
 }

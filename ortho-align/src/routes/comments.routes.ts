@@ -1,12 +1,14 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
-import { authenticate } from '../middleware/auth';
+import { authenticate, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { CommentService } from '../services/comment.service';
 import { CaseService } from '../services/case.service';
 import prisma from '../lib/prisma';
 
 const router = Router();
+
+router.use(authenticate, denyPatient);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -75,7 +77,6 @@ const upload = multer({
  */
 router.post(
   '/:id/comments',
-  authenticate,
   upload.array('files', 5),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -158,7 +159,7 @@ router.post(
  *       404:
  *         description: Case not found
  */
-router.get('/:id/comments', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id/comments', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const caseId = req.params.id as string;
 
@@ -230,7 +231,6 @@ router.get('/:id/comments', authenticate, async (req: AuthRequest, res: Response
  */
 router.delete(
   '/:id/comments/:commentId',
-  authenticate,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const commentId = req.params.commentId as string;

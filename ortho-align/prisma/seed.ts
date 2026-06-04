@@ -29,6 +29,20 @@ async function main() {
     hearAboutUs: 'Seed data',
   };
 
+  const client = await prisma.user.upsert({
+    where: { email: 'client@example.com' },
+    update: clientProfile,
+    create: {
+      email: 'client@example.com',
+      passwordHash,
+      name: 'Dr. Muneeb Khan',
+      role: UserRole.CLIENT,
+      ...clientProfile,
+      gender: Gender.MALE,
+    },
+  });
+  console.log('✓ Created client user 1');
+
   const client1 = await prisma.user.upsert({
     where: { email: 'client1@example.com' },
     update: clientProfile,
@@ -124,7 +138,7 @@ async function main() {
   if (existingPatients > 0) {
     console.log('✓ Patients already seeded — skipping patient creation');
     const patients = await prisma.patient.findMany({
-      where: { createdById: { in: [client1.id, client2.id] } },
+      where: { createdById: { in: [client.id, client1.id, client2.id] } },
       orderBy: { createdAt: 'asc' },
       take: 3,
       select: { id: true, name: true },
@@ -140,7 +154,7 @@ async function main() {
         dateOfBirth: new Date('1985-03-15'),
         address: '45 Cedar Ln, Springfield, IL 62702',
         notes: 'Regular patient, upper arch alignment needed',
-        createdById: client1.id,
+        createdById: client.id,
       },
     });
     console.log('✓ Created patient 1');
@@ -170,11 +184,37 @@ async function main() {
     console.log('✓ Created patient 3');
   }
 
+  const johnPatient = await prisma.patient.findFirst({
+    where: { name: 'John Smith' },
+    select: { id: true, userId: true },
+  });
+
+  if (johnPatient && !johnPatient.userId) {
+    const patientUser = await prisma.user.upsert({
+      where: { email: 'patient.john@example.com' },
+      update: { name: 'John Smith', role: UserRole.PATIENT },
+      create: {
+        email: 'patient.john@example.com',
+        passwordHash,
+        name: 'John Smith',
+        role: UserRole.PATIENT,
+      },
+    });
+    await prisma.patient.update({
+      where: { id: johnPatient.id },
+      data: { userId: patientUser.id },
+    });
+    console.log('✓ Created patient portal user (John Smith)');
+  } else if (johnPatient?.userId) {
+    console.log('✓ Patient portal user already linked');
+  }
+
   console.log('\n📊 Seed completed successfully!');
   console.log('\n🔑 Test Credentials (password: password123):');
   console.log('   Admin:     admin@orthoalign.com');
   console.log('   Client 1:  client1@example.com (Dr. Sarah Johnson)');
   console.log('   Client 2:  client2@example.com (Dr. Michael Brown)');
+  console.log('   Patient:   patient.john@example.com (John Smith portal)');
   console.log('   Designer 1: designer1@orthoalign.com');
   console.log('   Designer 2: designer2@orthoalign.com');
   console.log('   QC 1:      qc1@orthoalign.com');

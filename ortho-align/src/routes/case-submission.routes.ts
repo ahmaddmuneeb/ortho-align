@@ -1,12 +1,14 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { UserRole } from '@prisma/client';
 import { CaseSubmissionService } from '../services/case-submission.service';
 import { CaseService } from '../services/case.service';
 
 const router = Router();
+
+router.use(authenticate, denyPatient);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -65,7 +67,6 @@ const upload = multer({
  */
 router.post(
   '/:id/payment-proof',
-  authenticate,
   authorize(UserRole.CLIENT, UserRole.ADMIN),
   upload.single('file'),
   async (req: AuthRequest, res: Response): Promise<void> => {
@@ -135,7 +136,6 @@ router.post(
  */
 router.post(
   '/:id/submit',
-  authenticate,
   authorize(UserRole.CLIENT, UserRole.ADMIN),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -216,7 +216,6 @@ router.post(
  */
 router.post(
   '/:id/approve-payment',
-  authenticate,
   authorize(UserRole.ADMIN),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {

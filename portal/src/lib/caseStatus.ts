@@ -25,6 +25,19 @@ export const CLIENT_STATUS_FILTERS: { value: '' | CaseStatus; label: string }[] 
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
+export const ADMIN_STATUS_FILTERS: { value: '' | CaseStatus; label: string }[] = [
+  { value: '', label: 'All statuses' },
+  { value: 'PENDING_PAYMENT', label: 'Pending payment' },
+  { value: 'PENDING_APPROVAL', label: 'Pending approval' },
+  { value: 'OPENED', label: 'Opened' },
+  { value: 'ASSIGNED', label: 'Assigned' },
+  { value: 'IN_DESIGN', label: 'In design' },
+  { value: 'PENDING_QC', label: 'Pending QC' },
+  { value: 'PENDING_CLIENT_REVIEW', label: 'Client review' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+];
+
 export const EMPLOYEE_STATUS_FILTERS: { value: '' | CaseStatus; label: string }[] = [
   { value: '', label: 'All statuses' },
   { value: 'IN_DESIGN', label: 'In design' },

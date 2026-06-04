@@ -1,10 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ApiError, getRoleHomePath, useAuth } from '../context/AuthContext';
 import { AuthLayout } from '../components/Layout';
+import { ApiError } from '../lib/api';
+import { getRoleHomePath } from '../lib/routes';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { login as loginThunk } from '../store/slices/authSlice';
 
 export function LoginPage() {
-  const { login, user, token, loading } = useAuth();
+  const { user, token, loading } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const successMessage = (location.state as { message?: string } | null)?.message;
@@ -24,8 +28,8 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const user = await login(email, password);
-      navigate(getRoleHomePath(user), { replace: true });
+      const result = await dispatch(loginThunk({ email, password })).unwrap();
+      navigate(getRoleHomePath(result.user), { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed');
     } finally {
@@ -91,6 +95,9 @@ export function LoginPage() {
           <Link to="/register" className="font-medium text-brand-700 hover:underline">
             Create account
           </Link>
+        </p>
+        <p className="mt-3 text-center text-xs text-muted">
+          Patient portal? Your clinic creates your login — use the email they provided.
         </p>
       </form>
     </AuthLayout>

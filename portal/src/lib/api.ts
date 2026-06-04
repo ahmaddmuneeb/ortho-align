@@ -11,14 +11,8 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   unauthorizedHandler = handler;
 }
 
-function clearAuthStorage(): void {
-  setStoredToken(null);
-  localStorage.removeItem(USER_KEY);
-}
-
 function handleUnauthorized(status: number, auth: boolean): void {
   if (status === 401 && auth) {
-    clearAuthStorage();
     unauthorizedHandler?.();
   }
 }

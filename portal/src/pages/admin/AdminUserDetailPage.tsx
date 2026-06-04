@@ -1,35 +1,58 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { patientInputClass } from '../../components/PatientForm';
-import { useAuth } from '../../context/AuthContext';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { setUser as setAuthUser } from '../../store/slices/authSlice';
 import { api, ApiError } from '../../lib/api';
 import { toast } from '../../lib/toast';
 import type { AdminUser } from '../../types/case';
-import type { EmployeeType, UserRole } from '../../types/auth';
+import type { EmployeeType, Gender, UserRole } from '../../types/auth';
 
 const ROLES: UserRole[] = ['CLIENT', 'ADMIN', 'EMPLOYEE'];
 const EMPLOYEE_TYPES: NonNullable<EmployeeType>[] = ['DESIGNER', 'QC', 'BOTH'];
+const GENDERS: { value: Gender; label: string }[] = [
+  { value: 'MALE', label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+  { value: 'OTHER', label: 'Other' },
+];
 
 export function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
+  const currentUser = useAppSelector((s) => s.auth.user);
+  const dispatch = useAppDispatch();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('CLIENT');
   const [employeeType, setEmployeeType] = useState<EmployeeType>('DESIGNER');
+  const [gender, setGender] = useState<Gender>('MALE');
+  const [region, setRegion] = useState('');
+  const [phone, setPhone] = useState('');
+  const [website, setWebsite] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [hearAboutUs, setHearAboutUs] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const applyUserToForm = (u: AdminUser) => {
+    setName(u.name);
+    setRole(u.role as UserRole);
+    setEmployeeType((u.employeeType as EmployeeType) ?? 'DESIGNER');
+    setGender((u.gender as Gender) ?? 'MALE');
+    setRegion(u.region ?? '');
+    setPhone(u.phone ?? '');
+    setWebsite(u.website ?? '');
+    setBusinessAddress(u.businessAddress ?? '');
+    setHearAboutUs(u.hearAboutUs ?? '');
+  };
+
   const load = useCallback(async () => {
     if (!id) return;
     const data = await api.get<{ user: AdminUser }>(`/api/users/${id}`);
     setUser(data.user);
-    setName(data.user.name);
-    setRole(data.user.role as UserRole);
-    setEmployeeType((data.user.employeeType as EmployeeType) ?? 'DESIGNER');
+    applyUserToForm(data.user);
   }, [id]);
 
   useEffect(() => {
@@ -56,15 +79,41 @@ export function AdminUserDetailPage() {
     setSaving(true);
     setError(null);
     try {
-      const body: { name: string; role: UserRole; employeeType?: EmployeeType } = {
+      const body: Record<string, unknown> = {
         name: name.trim(),
         role,
       };
       if (role === 'EMPLOYEE') {
         body.employeeType = employeeType;
       }
+      if (role === 'CLIENT') {
+        body.gender = gender;
+        body.region = region.trim() || null;
+        body.phone = phone.trim();
+        body.website = website.trim() || null;
+        body.businessAddress = businessAddress.trim();
+        body.hearAboutUs = hearAboutUs.trim() || null;
+      }
       const data = await api.patch<{ user: AdminUser }>(`/api/users/${id}`, body);
       setUser(data.user);
+      applyUserToForm(data.user);
+      if (currentUser?.id === data.user.id) {
+        dispatch(
+          setAuthUser({
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            role: data.user.role as UserRole,
+            employeeType: (data.user.employeeType as EmployeeType) ?? null,
+            gender: data.user.gender as Gender | null | undefined,
+            region: data.user.region,
+            phone: data.user.phone,
+            website: data.user.website,
+            businessAddress: data.user.businessAddress,
+            hearAboutUs: data.user.hearAboutUs,
+          }),
+        );
+      }
       toast.success('User updated');
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Update failed';
@@ -120,6 +169,7 @@ export function AdminUserDetailPage() {
   }
 
   const isSelf = currentUser?.id === user.id;
+  const showClientFields = role === 'CLIENT';
 
   return (
     <div>
@@ -136,6 +186,14 @@ export function AdminUserDetailPage() {
             {user.updatedAt && ` · Updated ${new Date(user.updatedAt).toLocaleDateString()}`}
           </p>
         </div>
+        {isSelf && (
+          <Link
+            to="/profile"
+            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-brand-700 hover:border-brand-500"
+          >
+            My profile
+          </Link>
+        )}
       </div>
 
       {error && (
@@ -146,7 +204,7 @@ export function AdminUserDetailPage() {
 
       <form
         onSubmit={handleSave}
-        className="mt-6 max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="mt-6 max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
         <h2 className="text-lg font-semibold text-ink">Edit user</h2>
 
@@ -157,6 +215,15 @@ export function AdminUserDetailPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className={patientInputClass}
+          />
+        </label>
+
+        <label className="mt-4 block text-sm font-medium text-slate-700">
+          Email
+          <input
+            readOnly
+            value={user.email}
+            className={`${patientInputClass} bg-slate-50 text-muted`}
           />
         </label>
 
@@ -192,6 +259,73 @@ export function AdminUserDetailPage() {
           </label>
         )}
 
+        {showClientFields && (
+          <div className="mt-6 border-t border-slate-100 pt-6">
+            <h3 className="text-sm font-semibold text-ink">Practice / client details</h3>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Gender
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value as Gender)}
+                  className={patientInputClass}
+                >
+                  {GENDERS.map((g) => (
+                    <option key={g.value} value={g.value}>
+                      {g.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Region
+                <input
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  className={patientInputClass}
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Phone
+                <input
+                  required
+                  type="tel"
+                  minLength={10}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className={patientInputClass}
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Website (optional)
+                <input
+                  type="url"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className={patientInputClass}
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+                Business address
+                <input
+                  required
+                  value={businessAddress}
+                  onChange={(e) => setBusinessAddress(e.target.value)}
+                  className={patientInputClass}
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+                How they heard about us
+                <input
+                  value={hearAboutUs}
+                  onChange={(e) => setHearAboutUs(e.target.value)}
+                  className={patientInputClass}
+                />
+              </label>
+            </div>
+          </div>
+        )}
+
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="submit"
@@ -211,7 +345,10 @@ export function AdminUserDetailPage() {
           </button>
         </div>
         {isSelf && (
-          <p className="mt-2 text-xs text-muted">You cannot delete your own admin account.</p>
+          <p className="mt-2 text-xs text-muted">
+            You cannot delete your own admin account. Use Profile for personal edits limited to
+            your role.
+          </p>
         )}
       </form>
     </div>

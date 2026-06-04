@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { PatientPortalAccessPanel } from '../../components/PatientPortalAccessPanel';
 import { AdminPaymentPanel } from '../../components/case/AdminPaymentPanel';
+import { AdminWorkflowPanel } from '../../components/case/AdminWorkflowPanel';
 import { CaseFilesSection } from '../../components/case/CaseFilesSection';
 import { CommentsSection } from '../../components/case/CommentsSection';
 import { ProductionSection } from '../../components/case/ProductionSection';
 import { PrescriptionForm } from '../../components/PrescriptionForm';
 import { StatusBadge } from '../../components/StatusBadge';
 import { patientInputClass } from '../../components/PatientForm';
+import { CASE_STATUS_LABELS } from '../../lib/caseStatus';
 import { api, ApiError } from '../../lib/api';
+import { toast } from '../../lib/toast';
 import type { AdminUser, CaseRecord, Prescription } from '../../types/case';
 
 export function AdminCaseDetailPage() {
@@ -19,6 +23,8 @@ export function AdminCaseDetailPage() {
   const [employees, setEmployees] = useState<AdminUser[]>([]);
   const [designerId, setDesignerId] = useState('');
   const [qcId, setQcId] = useState('');
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -27,11 +33,14 @@ export function AdminCaseDetailPage() {
     if (!id) return;
     const data = await api.get<{ case: CaseRecord }>(`/api/cases/${id}`);
     setCaseRecord(data.case);
+    setNotes(data.case.notes ?? '');
   }, [id]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (!id) return;
+      setLoading(true);
       try {
         await load();
         try {
@@ -57,7 +66,7 @@ export function AdminCaseDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [id, load]);
 
   const designers = employees.filter(
     (e) => e.employeeType === 'DESIGNER' || e.employeeType === 'BOTH',
@@ -77,8 +86,11 @@ export function AdminCaseDetailPage() {
         { designerId, qcId },
       );
       setCaseRecord(data.case);
+      toast.success('Payment approved — case in design');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Approval failed');
+      const msg = err instanceof ApiError ? err.message : 'Approval failed';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setActing(false);
     }
@@ -97,10 +109,32 @@ export function AdminCaseDetailPage() {
         qcId,
       });
       setCaseRecord(data.case);
+      toast.success('Case assigned');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Assign failed');
+      const msg = err instanceof ApiError ? err.message : 'Assign failed';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setActing(false);
+    }
+  };
+
+  const saveNotes = async () => {
+    if (!id) return;
+    setSavingNotes(true);
+    setError(null);
+    try {
+      const data = await api.patch<{ case: CaseRecord }>(`/api/cases/${id}/notes`, {
+        notes,
+      });
+      setCaseRecord(data.case);
+      toast.success('Notes saved');
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to save notes';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSavingNotes(false);
     }
   };
 
@@ -120,9 +154,12 @@ export function AdminCaseDetailPage() {
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-ink">
-          {caseRecord.patient?.name ?? 'Case'}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-ink">
+            {caseRecord.patient?.name ?? 'Case'}
+          </h1>
+          <p className="mt-1 font-mono text-xs text-muted">{caseRecord.id}</p>
+        </div>
         <StatusBadge status={caseRecord.status} />
       </div>
 
@@ -132,26 +169,91 @@ export function AdminCaseDetailPage() {
         </p>
       )}
 
+      {caseRecord.patientId && caseRecord.patient?.name && (
+        <PatientPortalAccessPanel
+          patientId={caseRecord.patientId}
+          patientName={caseRecord.patient.name}
+        />
+      )}
+
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-muted">
-          Client: {caseRecord.createdBy?.name} · Payment proof:{' '}
-          {caseRecord.paymentProofUrl ? (
-            <a
-              href={caseRecord.paymentProofUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-brand-700 underline"
-            >
-              View
-            </a>
-          ) : (
-            'None'
-          )}
-        </p>
+        <h2 className="text-lg font-semibold text-ink">Case details</h2>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-muted">Status</dt>
+            <dd className="font-medium text-ink">
+              {CASE_STATUS_LABELS[caseRecord.status]}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Client</dt>
+            <dd className="font-medium text-ink">
+              {caseRecord.createdBy?.name ?? '—'}
+              {caseRecord.createdBy?.email && (
+                <span className="block text-xs font-normal text-muted">
+                  {caseRecord.createdBy.email}
+                </span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Designer</dt>
+            <dd>{caseRecord.designer?.name ?? '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">QC</dt>
+            <dd>{caseRecord.qc?.name ?? '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Created</dt>
+            <dd>{new Date(caseRecord.createdAt).toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Payment proof</dt>
+            <dd>
+              {caseRecord.paymentProofUrl ? (
+                <a
+                  href={caseRecord.paymentProofUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-brand-700 underline"
+                >
+                  View
+                </a>
+              ) : (
+                'None'
+              )}
+            </dd>
+          </div>
+        </dl>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-ink">Case notes</h2>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={4}
+          className={`${patientInputClass} mt-4`}
+          placeholder="Internal or case notes"
+        />
+        <button
+          type="button"
+          disabled={savingNotes}
+          onClick={saveNotes}
+          className="mt-3 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        >
+          {savingNotes ? 'Saving…' : 'Save notes'}
+        </button>
+      </section>
+
+      <AdminWorkflowPanel caseRecord={caseRecord} onUpdate={setCaseRecord} />
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-ink">Assign staff</h2>
+        <p className="mt-1 text-sm text-muted">
+          Approve pending submissions or assign when case is opened
+        </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-medium text-slate-700">
             Designer

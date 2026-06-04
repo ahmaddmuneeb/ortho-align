@@ -10,7 +10,7 @@
  *         name: role
  *         schema:
  *           type: string
- *           enum: [CLIENT, ADMIN, EMPLOYEE]
+ *           enum: [CLIENT, ADMIN, EMPLOYEE, PATIENT]
  *         description: Filter by user role
  *       - in: query
  *         name: employeeType
@@ -99,6 +99,38 @@
  *         description: Unauthorized
  *       404:
  *         description: User not found
+ *
+ *   patch:
+ *     tags: [Users]
+ *     summary: Update current user profile
+ *     description: |
+ *       Self-service profile update. Role cannot be changed.
+ *       - CLIENT: name, phone, website, businessAddress
+ *       - PATIENT / EMPLOYEE / ADMIN: name only
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               website:
+ *                 type: string
+ *                 nullable: true
+ *               businessAddress:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile updated
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
  * 
  * /api/users/{id}:
  *   get:
@@ -154,7 +186,7 @@
  *                 example: Updated Name
  *               role:
  *                 type: string
- *                 enum: [CLIENT, ADMIN, EMPLOYEE]
+ *                 enum: [CLIENT, ADMIN, EMPLOYEE, PATIENT]
  *                 example: ADMIN
  *               employeeType:
  *                 type: string
