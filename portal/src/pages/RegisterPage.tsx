@@ -1,0 +1,153 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ApiError, getRoleHomePath, useAuth } from '../context/AuthContext';
+import { AuthLayout } from '../components/Layout';
+import type { Gender } from '../types/auth';
+
+const GENDERS: { value: Gender; label: string }[] = [
+  { value: 'MALE', label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+export function RegisterPage() {
+  const { register, user, token, loading } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user && token) {
+      navigate(getRoleHomePath(user), { replace: true });
+    }
+  }, [loading, user, token, navigate]);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const form = new FormData(e.currentTarget);
+    try {
+      await register({
+        email: String(form.get('email')),
+        password: String(form.get('password')),
+        name: String(form.get('name')),
+        role: 'CLIENT',
+        gender: form.get('gender') as Gender,
+        region: String(form.get('region')),
+        phone: String(form.get('phone')),
+        website: String(form.get('website') || '') || undefined,
+        businessAddress: String(form.get('businessAddress')),
+        hearAboutUs: String(form.get('hearAboutUs')),
+      });
+      navigate('/login', {
+        replace: true,
+        state: { message: 'Account created. Please sign in.' },
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.details) {
+        const details = Array.isArray(err.details)
+          ? err.details.join(' ')
+          : String(err.details);
+        setError(`${err.message}: ${details}`);
+      } else {
+        setError(err instanceof ApiError ? err.message : 'Registration failed');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const inputClass =
+    'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500';
+
+  return (
+    <AuthLayout>
+      <form
+        onSubmit={handleSubmit}
+        className="max-h-[80vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      >
+        <h2 className="text-lg font-semibold text-ink">Create practice account</h2>
+        <p className="mt-1 text-sm text-muted">
+          OrthoAlign PAYG · CLIENT registration (doctors)
+        </p>
+
+        {error && (
+          <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+            Full name
+            <input name="name" required className={inputClass} />
+          </label>
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+            Email
+            <input name="email" type="email" required autoComplete="email" className={inputClass} />
+          </label>
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+            Password
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              className={inputClass}
+            />
+            <span className="mt-1 block text-xs text-muted">
+              8+ chars, uppercase, number, special (!@#$%^&*)
+            </span>
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Gender
+            <select name="gender" required className={inputClass}>
+              {GENDERS.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Region
+            <input name="region" required className={inputClass} />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Phone
+            <input name="phone" type="tel" required minLength={10} className={inputClass} />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Website (optional)
+            <input name="website" type="url" className={inputClass} />
+          </label>
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+            Business address
+            <input name="businessAddress" required className={inputClass} />
+          </label>
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+            How did you hear about us?
+            <input name="hearAboutUs" required className={inputClass} />
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="mt-6 w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        >
+          {submitting ? 'Creating account…' : 'Create account'}
+        </button>
+
+        <p className="mt-4 text-center text-sm text-muted">
+          Already registered?{' '}
+          <Link to="/login" className="font-medium text-brand-700 hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
+  );
+}

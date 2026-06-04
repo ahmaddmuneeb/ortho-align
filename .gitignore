@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment secrets (keep examples)
+.env
+.env.local
+**/.env
+!**/.env.example
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OS & editor
+.DS_Store
+.cursor/
+
+# Logs
+*.log
+
+# Database
+prisma/*.db
+*.db
+
+# Test coverage
+coverage/
+
+# Large / local artifacts
+Portal.pdf
+
+# Legacy root paths (portal subtree)
+portal/node_modules/
+portal/dist/
+portal/.env
