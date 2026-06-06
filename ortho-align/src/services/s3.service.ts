@@ -1,36 +1,41 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { FileCategory } from '@prisma/client';
+import {
+  buildS3PublicUrl,
+  createS3Client,
+  getS3BucketName,
+} from '../config/aws';
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
-
-const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME!;
+const s3Client = createS3Client();
+const BUCKET_NAME = () => getS3BucketName();
 
 export class S3Service {
+  static async uploadBuffer(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME(),
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    });
+
+    await s3Client.send(command);
+    return buildS3PublicUrl(key);
+  }
+
   static async uploadFile(
     file: Express.Multer.File,
     caseId: string,
-    category: FileCategory
+    category: FileCategory,
   ): Promise<{ fileUrl: string; fileName: string }> {
     const timestamp = Date.now();
     const sanitizedFileName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     const key = `cases/${caseId}/${category.toLowerCase()}/${timestamp}-${sanitizedFileName}`;
 
-    const command = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    });
-
-    await s3Client.send(command);
-
-    const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const fileUrl = await S3Service.uploadBuffer(key, file.buffer, file.mimetype);
 
     return {
       fileUrl,
@@ -46,7 +51,7 @@ export class S3Service {
     }
 
     const command = new DeleteObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: BUCKET_NAME(),
       Key: key,
     });
 

@@ -23,26 +23,11 @@ export class CaseSubmissionService {
     const sanitizedFileName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     const key = `cases/${caseId}/payment-proof/${timestamp}-${sanitizedFileName}`;
 
-    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
-    
-    const s3Client = new S3Client({
-      region: process.env.AWS_REGION!,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      },
-    });
-
-    const command = new PutObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET_NAME!,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype
-    });
-
-    await s3Client.send(command);
-
-    const paymentProofUrl = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const paymentProofUrl = await S3Service.uploadBuffer(
+      key,
+      file.buffer,
+      file.mimetype,
+    );
 
     await prisma.case.update({
       where: { id: caseId },
