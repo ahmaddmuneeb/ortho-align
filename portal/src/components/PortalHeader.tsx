@@ -21,7 +21,7 @@ import { toast } from '../lib/toast';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logoutAsync } from '../store/slices/authSlice';
 import type { AuthUser } from '../types/auth';
-import { Alert, Button } from './ui';
+import { Button } from './ui';
 
 type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 
@@ -345,7 +345,7 @@ export function PortalHeader({ subtitle }: PortalHeaderProps) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <button
             type="button"
-            className="absolute inset-0 bg-slate-900/40"
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] animate-[fade-in_150ms_ease-out]"
             onClick={closeLogoutConfirm}
             aria-label="Close dialog"
             disabled={logoutLoading}
@@ -354,33 +354,51 @@ export function PortalHeader({ subtitle }: PortalHeaderProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="logout-dialog-title"
-            className="relative w-full max-w-sm rounded-xl border border-slate-200 bg-white p-4 shadow-xl"
+            aria-describedby="logout-dialog-desc"
+            className="relative w-full max-w-sm animate-[modal-in_180ms_ease-out] rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl"
           >
-            <Alert variant="warning" title="Sign out?" className="shadow-none">
-              <p id="logout-dialog-title">
-                You will need to sign in again to access your account.
-              </p>
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={logoutLoading}
-                  onClick={closeLogoutConfirm}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="danger"
-                  loading={logoutLoading}
-                  loadingText="Signing out…"
-                  onClick={handleLogoutConfirm}
-                >
-                  <LogOut className="h-4 w-4 shrink-0" aria-hidden />
-                  Sign out
-                </Button>
-              </div>
-            </Alert>
+            <button
+              type="button"
+              onClick={closeLogoutConfirm}
+              disabled={logoutLoading}
+              aria-label="Close dialog"
+              className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <LogOut className="h-5 w-5" aria-hidden />
+            </span>
+
+            <h2 id="logout-dialog-title" className="mt-4 text-lg font-semibold text-ink">
+              Sign out of OrthoAlign?
+            </h2>
+            <p id="logout-dialog-desc" className="mt-1.5 text-sm text-muted">
+              You'll need to sign in again to access your account.
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={logoutLoading}
+                onClick={closeLogoutConfirm}
+                className="sm:flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                loading={logoutLoading}
+                loadingText="Signing out…"
+                onClick={handleLogoutConfirm}
+                className="!border-transparent !bg-red-600 !text-white hover:!bg-red-700 focus-visible:!ring-red-500 sm:flex-1"
+              >
+                <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+                Sign out
+              </Button>
+            </div>
           </div>
         </div>
       )}
