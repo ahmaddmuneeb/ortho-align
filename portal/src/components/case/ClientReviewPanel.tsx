@@ -98,7 +98,7 @@ export function ClientReviewPanel({ caseRecord, onUpdate }: ClientReviewPanelPro
             loadingText="Sending…"
             onClick={() => transition('CLIENT_REJECTED')}
           >
-            Request revision
+            Reject for modification
           </Button>
         )}
       </div>

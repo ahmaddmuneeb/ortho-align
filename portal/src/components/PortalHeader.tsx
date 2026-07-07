@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { getEmployeeHomePath } from '../lib/routes';
+import { getEmployeeQueuePath } from '../lib/routes';
 import { toast } from '../lib/toast';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logoutAsync } from '../store/slices/authSlice';
@@ -41,16 +41,22 @@ function navForUser(user: AuthUser): NavItem[] {
         { to: '/admin/users', label: 'Users', icon: UserCog },
       ];
     case 'EMPLOYEE': {
-      const home = getEmployeeHomePath(user.employeeType);
       const items: NavItem[] = [
-        { to: home, label: 'My queue', icon: ListChecks, end: true },
+        { to: '/employee/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
       ];
       if (user.employeeType === 'BOTH') {
         items.push(
           { to: '/employee/designer', label: 'Designer', icon: PenTool },
           { to: '/employee/qc', label: 'QC', icon: ClipboardCheck },
         );
+      } else {
+        items.push({
+          to: getEmployeeQueuePath(user.employeeType),
+          label: 'My queue',
+          icon: ListChecks,
+        });
       }
+      items.push({ to: '/employee/history', label: 'History', icon: FolderOpen });
       return items;
     }
     case 'PATIENT':

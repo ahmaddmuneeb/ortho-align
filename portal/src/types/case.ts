@@ -3,6 +3,7 @@ export type CaseStatus =
   | 'PENDING_APPROVAL'
   | 'OPENED'
   | 'ASSIGNED'
+  | 'CLARIFICATION_REQUESTED'
   | 'IN_DESIGN'
   | 'PENDING_QC'
   | 'QC_REJECTED'
@@ -12,6 +13,15 @@ export type CaseStatus =
   | 'CANCELLED';
 
 export type FileCategory = 'SCAN' | 'PHOTO' | 'XRAY' | 'PRODUCTION' | 'OTHER';
+
+export type ClarificationCategory =
+  | 'WRONG_FILES'
+  | 'MISSING_SCANS'
+  | 'DISTORTED_SCAN_DATA'
+  | 'MISMATCHED_PATIENT_DATA'
+  | 'MISSING_RECORDS'
+  | 'POOR_SCAN_QUALITY'
+  | 'OTHER_TECHNICAL_ISSUE';
 
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
 
@@ -43,6 +53,7 @@ export interface CaseFile {
   fileUrl: string;
   fileSize: number;
   mimeType: string;
+  version: string;
   uploadedAt: string;
 }
 
@@ -125,6 +136,9 @@ export interface CaseRecord {
   qcId?: string | null;
   notes?: string | null;
   refinementCount: number;
+  caseNumber: number;
+  revisionNumber: number;
+  dueDate?: string | null;
   paymentProofUrl?: string | null;
   submittedAt?: string | null;
   createdAt: string;
@@ -138,6 +152,26 @@ export interface CaseRecord {
   workflowLogs?: CaseWorkflowLog[];
   files?: CaseFile[];
   productionUrls?: ProductionUrl[];
+}
+
+export interface CaseClarificationAttachment {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+}
+
+export interface CaseClarification {
+  id: string;
+  caseId: string;
+  requestedById: string;
+  category: ClarificationCategory;
+  message: string;
+  resolvedAt?: string | null;
+  createdAt: string;
+  requestedBy?: CaseUserRef;
+  attachments?: CaseClarificationAttachment[];
 }
 
 export interface CaseCommentAttachment {

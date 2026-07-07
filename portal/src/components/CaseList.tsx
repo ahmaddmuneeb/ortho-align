@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Pagination, type PaginationProps } from './Pagination';
 import { StatusBadge } from './StatusBadge';
 import { SkeletonTable } from './ui/Skeleton';
+import { formatCaseVersion } from '../lib/caseStatus';
 import type { CaseRecord } from '../types/case';
 
 interface CaseListProps {
@@ -49,6 +50,7 @@ export function CaseList({
             <tr>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Patient</th>
+              <th className="px-4 py-3">Version</th>
               {isAdmin && <th className="px-4 py-3">Client</th>}
               {isAdmin && <th className="px-4 py-3">Case ID</th>}
               <th className="px-4 py-3">Updated</th>
@@ -67,6 +69,9 @@ export function CaseList({
                   >
                     {c.patient?.name ?? c.patientId}
                   </Link>
+                </td>
+                <td className="px-4 py-3 font-mono text-xs text-muted">
+                  {formatCaseVersion(c)}
                 </td>
                 {isAdmin && (
                   <td className="px-4 py-3 text-muted">
@@ -100,6 +105,7 @@ export function CaseList({
                 </p>
                 <StatusBadge status={c.status} />
               </div>
+              <p className="mt-0.5 font-mono text-xs text-muted">v{formatCaseVersion(c)}</p>
               {isAdmin && c.createdBy && (
                 <p className="mt-1 text-xs text-muted">Client: {c.createdBy.name}</p>
               )}
@@ -120,6 +126,6 @@ export function CaseList({
 }
 
 export function CaseListSkeleton({ variant = 'default' }: { variant?: 'default' | 'admin' }) {
-  const cols = variant === 'admin' ? 5 : 4;
+  const cols = variant === 'admin' ? 6 : 5;
   return <SkeletonTable rows={6} cols={cols} className="mt-6" />;
 }

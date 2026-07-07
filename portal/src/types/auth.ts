@@ -47,7 +47,20 @@ export interface DashboardStats {
     approvalRequired: number;
     completed: number;
     cancelled: number;
+    clarificationRequired: number;
   };
+}
+
+export interface EmployeeDashboardStats {
+  totalAssigned: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  waitingForClarification: number;
+  declined: number;
+  revisionCases: number;
+  completedRevisions: number;
+  avgCompletionDays: number | null;
 }
 
 export interface CaseSummary {

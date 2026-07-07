@@ -14,6 +14,8 @@ import { CaseNewPage } from './pages/CaseNewPage';
 import { CaseDetailPage } from './pages/CaseDetailPage';
 import { EmployeeQueuePage } from './pages/employee/EmployeeQueuePage';
 import { EmployeeCaseDetailPage } from './pages/employee/EmployeeCaseDetailPage';
+import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { EmployeeCaseHistoryPage } from './pages/employee/EmployeeCaseHistoryPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminUserDetailPage } from './pages/admin/AdminUserDetailPage';
@@ -71,6 +73,8 @@ export default function App() {
       <Route element={<ProtectedRoute roles={['EMPLOYEE']} />}>
         <Route path="/employee" element={<EmployeeHomeRedirect />} />
         <Route element={<PortalLayout />}>
+          <Route path="/employee/dashboard" element={<EmployeeDashboardPage />} />
+          <Route path="/employee/history" element={<EmployeeCaseHistoryPage />} />
           <Route path="/employee/designer" element={<EmployeeQueuePage />} />
           <Route path="/employee/qc" element={<EmployeeQueuePage />} />
           <Route path="/employee/cases/:id" element={<EmployeeCaseDetailPage />} />

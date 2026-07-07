@@ -3,8 +3,34 @@ import { authenticate, authorizeEmployee } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { EmployeeType, CaseStatus } from '@prisma/client';
 import prisma from '../lib/prisma';
+import { DashboardService } from '../services/dashboard.service';
 
 const router = Router();
+
+/**
+ * @swagger
+ * /api/employee/dashboard:
+ *   get:
+ *     tags: [Employee]
+ *     summary: Get employee dashboard stats
+ *     description: Returns case counts and stats for the assigned designer/QC employee
+ *     responses:
+ *       200:
+ *         description: Employee dashboard stats
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - must be employee
+ */
+router.get('/dashboard', authenticate, authorizeEmployee(EmployeeType.DESIGNER, EmployeeType.QC, EmployeeType.BOTH), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const stats = await DashboardService.getEmployeeDashboard(req.user!.id, req.user!.employeeType);
+    res.json({ stats });
+  } catch (error) {
+    console.error('Get employee dashboard error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 /**
  * @swagger
@@ -18,7 +44,7 @@ const router = Router();
  *         name: status
  *         schema:
  *           type: string
- *           enum: [IN_DESIGN, PENDING_QC, QC_REJECTED, PENDING_CLIENT_REVIEW, CLIENT_REJECTED, APPROVED]
+ *           enum: [ASSIGNED, CLARIFICATION_REQUESTED, IN_DESIGN, PENDING_QC, QC_REJECTED, PENDING_CLIENT_REVIEW, CLIENT_REJECTED, APPROVED]
  *         description: Filter by case status
  *     responses:
  *       200:
@@ -105,6 +131,10 @@ router.get('/cases', authenticate, authorizeEmployee(EmployeeType.DESIGNER, Empl
               },
             },
           },
+        },
+        workflowLogs: {
+          select: { toStatus: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
         },
       },
       orderBy: {
@@ -194,6 +224,20 @@ router.get('/cases/:id', authenticate, authorizeEmployee(EmployeeType.DESIGNER, 
           },
           orderBy: {
             createdAt: 'desc',
+          },
+        },
+        workflowLogs: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          include: {
+            performedBy: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },

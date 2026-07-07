@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { CaseFilesSection } from '../components/case/CaseFilesSection';
 import { CaseSubmissionPanel } from '../components/case/CaseSubmissionPanel';
 import { ClientReviewPanel } from '../components/case/ClientReviewPanel';
+import { ClarificationBanner } from '../components/case/ClarificationBanner';
 import { CommentsSection } from '../components/case/CommentsSection';
 import { PaymentSection } from '../components/case/PaymentSection';
 import { ProductionSection } from '../components/case/ProductionSection';
@@ -15,6 +16,7 @@ import { api, ApiError } from '../lib/api';
 import { MAX, sanitizeText } from '../lib/sanitize';
 import { toast } from '../lib/toast';
 import { formatDisplayDate } from '../lib/patientDates';
+import { formatCaseVersion } from '../lib/caseStatus';
 import type { CaseRecord, Prescription, PrescriptionInput } from '../types/case';
 
 export function CaseDetailPage() {
@@ -132,10 +134,13 @@ export function CaseDetailPage() {
             Created {new Date(caseRecord.createdAt).toLocaleDateString()}
             {caseRecord.refinementCount > 0 &&
               ` · ${caseRecord.refinementCount} refinement(s)`}
+            {` · v${formatCaseVersion(caseRecord)}`}
           </p>
         </div>
         <StatusBadge status={caseRecord.status} />
       </div>
+
+      <ClarificationBanner caseRecord={caseRecord} onResolved={setCaseRecord} canResolve />
 
       {caseRecord.patient && (
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

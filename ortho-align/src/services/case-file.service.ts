@@ -11,7 +11,8 @@ export class CaseFileService {
       fileUrl: string;
       fileSize: number;
       mimeType: string;
-    }>
+    }>,
+    version?: string
   ) {
     const caseFiles = await prisma.caseFile.createMany({
       data: files.map((file) => ({
@@ -21,6 +22,7 @@ export class CaseFileService {
         fileUrl: file.fileUrl,
         fileSize: file.fileSize,
         mimeType: file.mimeType,
+        ...(version && { version }),
       })),
     });
 

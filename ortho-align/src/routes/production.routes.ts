@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import multer from 'multer';
 import { authenticate, authorizeEmployee, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
-import { UserRole, EmployeeType, FileCategory } from '@prisma/client';
+import { UserRole, EmployeeType, FileCategory, CaseStatus } from '@prisma/client';
 import { S3Service } from '../services/s3.service';
 import { CaseFileService } from '../services/case-file.service';
 import { ProductionService } from '../services/production.service';
@@ -82,6 +82,11 @@ router.post(
       // Check if user is the assigned designer
       if (caseRecord.designerId !== req.user!.id) {
         res.status(403).json({ error: 'Forbidden - only assigned designer can upload production files' });
+        return;
+      }
+
+      if (caseRecord.status !== CaseStatus.IN_DESIGN) {
+        res.status(403).json({ error: 'Forbidden - case must be in IN_DESIGN status to upload production files' });
         return;
       }
 
@@ -190,6 +195,11 @@ router.post(
       // Check if user is the assigned designer
       if (caseRecord.designerId !== req.user!.id) {
         res.status(403).json({ error: 'Forbidden - only assigned designer can add production URLs' });
+        return;
+      }
+
+      if (caseRecord.status !== CaseStatus.IN_DESIGN) {
+        res.status(403).json({ error: 'Forbidden - case must be in IN_DESIGN status to add production URLs' });
         return;
       }
 

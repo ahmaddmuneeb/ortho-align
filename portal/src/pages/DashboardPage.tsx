@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
 import { Alert, SkeletonDashboard } from '../components/ui';
 import type { DashboardStats } from '../types/auth';
@@ -58,6 +59,19 @@ export function DashboardPage() {
     <div>
       <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
       <p className="mt-1 text-sm text-muted">Overview of your practice activity</p>
+
+      {stats.casesByStatus.clarificationRequired > 0 && (
+        <div className="mt-4">
+          <Alert variant="warning">
+            {stats.casesByStatus.clarificationRequired} case
+            {stats.casesByStatus.clarificationRequired === 1 ? '' : 's'} need
+            {stats.casesByStatus.clarificationRequired === 1 ? 's' : ''} your attention —{' '}
+            <Link to="/cases?status=CLARIFICATION_REQUESTED" className="font-medium underline">
+              view clarification requests
+            </Link>
+          </Alert>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (

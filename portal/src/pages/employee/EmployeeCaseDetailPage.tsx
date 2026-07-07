@@ -3,11 +3,13 @@ import { Link, useParams } from 'react-router-dom';
 import { CaseFilesSection } from '../../components/case/CaseFilesSection';
 import { CommentsSection } from '../../components/case/CommentsSection';
 import { ProductionSection } from '../../components/case/ProductionSection';
+import { ClarificationRequestForm } from '../../components/case/ClarificationRequestForm';
 import { PrescriptionForm } from '../../components/PrescriptionForm';
 import { FileUpload } from '../../components/FileUpload';
 import { StatusBadge } from '../../components/StatusBadge';
 import { patientInputClass } from '../../components/PatientForm';
-import { getEmployeeHomePath } from '../../lib/routes';
+import { getEmployeeQueuePath } from '../../lib/routes';
+import { formatCaseVersion } from '../../lib/caseStatus';
 import { useAppSelector } from '../../store/hooks';
 import { api, ApiError } from '../../lib/api';
 import { MAX, sanitizeText } from '../../lib/sanitize';
@@ -28,6 +30,7 @@ export function EmployeeCaseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [productionRefresh, setProductionRefresh] = useState(0);
+  const [showClarificationForm, setShowClarificationForm] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -158,7 +161,7 @@ export function EmployeeCaseDetailPage() {
     return <Alert variant="error">{error ?? 'Case not found'}</Alert>;
   }
 
-  const back = getEmployeeHomePath(user?.employeeType ?? null);
+  const back = getEmployeeQueuePath(user?.employeeType ?? null);
 
   return (
     <div className="space-y-6">
@@ -175,7 +178,10 @@ export function EmployeeCaseDetailPage() {
             Client: {caseRecord.createdBy?.name ?? '—'}
           </p>
         </div>
-        <StatusBadge status={caseRecord.status} />
+        <div className="flex flex-col items-end gap-1">
+          <StatusBadge status={caseRecord.status} />
+          <span className="font-mono text-xs text-muted">v{formatCaseVersion(caseRecord)}</span>
+        </div>
       </div>
 
       {error && <Alert variant="error">{error}</Alert>}
@@ -184,18 +190,73 @@ export function EmployeeCaseDetailPage() {
         <section className="rounded-xl border border-sky-200 bg-sky-50 p-6">
           <h2 className="text-lg font-semibold text-sky-900">Designer actions</h2>
           <p className="mt-1 text-sm text-sky-800/90">
-            This case is assigned to you. Start design when you are ready to work.
+            This case is assigned to you. Verify the files and information below, then start
+            design when you are ready to work.
           </p>
-          <Button
-            type="button"
-            loading={acting}
-            loadingText="Starting…"
-            onClick={startDesign}
-            className="mt-3"
-          >
-            Start design
-          </Button>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Button type="button" loading={acting} loadingText="Starting…" onClick={startDesign}>
+              Start design
+            </Button>
+            {!showClarificationForm && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowClarificationForm(true)}
+              >
+                Something's wrong with this case?
+              </Button>
+            )}
+          </div>
+          {showClarificationForm && (
+            <ClarificationRequestForm
+              caseId={caseRecord.id}
+              onSubmitted={(c) => {
+                setCaseRecord(c);
+                setShowClarificationForm(false);
+                toast.success('Clarification request sent to the doctor');
+              }}
+              onCancel={() => setShowClarificationForm(false)}
+            />
+          )}
         </section>
+      )}
+
+      {isDesigner &&
+        caseRecord.status === 'CLIENT_REJECTED' &&
+        caseRecord.designerId === user?.id && (
+          <section className="rounded-xl border border-orange-200 bg-orange-50 p-6">
+            <h2 className="text-lg font-semibold text-orange-900">Case declined</h2>
+            <p className="mt-1 text-sm text-orange-800/90">
+              The doctor rejected this case for modification. Review their note below, then
+              accept to make the required changes and upload updated treatment files.
+            </p>
+            {caseRecord.workflowLogs?.find((l) => l.toStatus === 'CLIENT_REJECTED')?.note && (
+              <p className="mt-2 whitespace-pre-wrap rounded-lg bg-white/70 p-3 text-sm text-slate-700">
+                {caseRecord.workflowLogs.find((l) => l.toStatus === 'CLIENT_REJECTED')?.note}
+              </p>
+            )}
+            <Button
+              type="button"
+              loading={acting}
+              loadingText="Accepting…"
+              onClick={startDesign}
+              className="mt-3 !bg-orange-600 hover:!bg-orange-700"
+            >
+              Accept &amp; start modifications
+            </Button>
+          </section>
+        )}
+
+      {isDesigner &&
+        caseRecord.status === 'CLIENT_REJECTED' &&
+        caseRecord.designerId !== user?.id && (
+          <Alert variant="info">This case was declined by the doctor.</Alert>
+        )}
+
+      {caseRecord.status === 'CLARIFICATION_REQUESTED' && (
+        <Alert variant="info">
+          Waiting on the doctor to address the clarification request and resubmit this case.
+        </Alert>
       )}
 
       {isDesigner && caseRecord.status === 'IN_DESIGN' && (
@@ -271,7 +332,18 @@ export function EmployeeCaseDetailPage() {
         </section>
       )}
 
-      <CaseFilesSection caseId={caseRecord.id} canUpload={false} canDelete={false} />
+      {isDesigner &&
+        ['PENDING_QC', 'PENDING_CLIENT_REVIEW', 'APPROVED'].includes(caseRecord.status) && (
+          <Alert variant="info">
+            This case is read-only while it's out of your hands — awaiting review.
+          </Alert>
+        )}
+
+      <CaseFilesSection
+        caseId={caseRecord.id}
+        canUpload={!!isDesigner && caseRecord.status === 'IN_DESIGN'}
+        canDelete={!!isDesigner && caseRecord.status === 'IN_DESIGN'}
+      />
 
       {prescription !== undefined && prescription && (
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

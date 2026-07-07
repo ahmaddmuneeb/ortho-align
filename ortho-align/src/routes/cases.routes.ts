@@ -137,10 +137,16 @@ router.patch('/:id/notes', async (req: AuthRequest, res: Response): Promise<void
 router.post('/:id/assign', authorize(UserRole.ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const { designerId, qcId } = req.body;
+    const { designerId, qcId, dueDate } = req.body;
 
     if (!designerId || !qcId) {
       res.status(400).json({ error: 'Designer ID and QC ID are required' });
+      return;
+    }
+
+    const parsedDueDate = dueDate ? new Date(dueDate) : undefined;
+    if (dueDate && Number.isNaN(parsedDueDate?.getTime())) {
+      res.status(400).json({ error: 'Invalid due date' });
       return;
     }
 
@@ -149,6 +155,7 @@ router.post('/:id/assign', authorize(UserRole.ADMIN), async (req: AuthRequest, r
       designerId,
       qcId,
       assignedById: req.user!.id,
+      dueDate: parsedDueDate,
     });
 
     res.json({ case: assignedCase });

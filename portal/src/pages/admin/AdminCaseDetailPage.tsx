@@ -4,12 +4,13 @@ import { PatientPortalAccessPanel } from '../../components/PatientPortalAccessPa
 import { AdminPaymentPanel } from '../../components/case/AdminPaymentPanel';
 import { AdminWorkflowPanel } from '../../components/case/AdminWorkflowPanel';
 import { CaseFilesSection } from '../../components/case/CaseFilesSection';
+import { ClarificationBanner } from '../../components/case/ClarificationBanner';
 import { CommentsSection } from '../../components/case/CommentsSection';
 import { ProductionSection } from '../../components/case/ProductionSection';
 import { PrescriptionForm } from '../../components/PrescriptionForm';
 import { StatusBadge } from '../../components/StatusBadge';
 import { patientInputClass } from '../../components/PatientForm';
-import { CASE_STATUS_LABELS } from '../../lib/caseStatus';
+import { CASE_STATUS_LABELS, formatCaseVersion } from '../../lib/caseStatus';
 import { api, ApiError } from '../../lib/api';
 import { MAX, sanitizeText } from '../../lib/sanitize';
 import { toast } from '../../lib/toast';
@@ -163,6 +164,8 @@ export function AdminCaseDetailPage() {
 
       {error && <Alert variant="error">{error}</Alert>}
 
+      <ClarificationBanner caseRecord={caseRecord} onResolved={setCaseRecord} />
+
       {caseRecord.patientId && caseRecord.patient?.name && (
         <PatientPortalAccessPanel
           patientId={caseRecord.patientId}
@@ -201,6 +204,14 @@ export function AdminCaseDetailPage() {
           <div>
             <dt className="text-muted">Created</dt>
             <dd>{new Date(caseRecord.createdAt).toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Version</dt>
+            <dd className="font-mono">{formatCaseVersion(caseRecord)}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Due date</dt>
+            <dd>{caseRecord.dueDate ? new Date(caseRecord.dueDate).toLocaleDateString() : '—'}</dd>
           </div>
           <div>
             <dt className="text-muted">Payment proof</dt>

@@ -52,7 +52,7 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING_PAYMENT, OPENED, ASSIGNED, IN_DESIGN, PENDING_QC, QC_REJECTED, PENDING_CLIENT_REVIEW, CLIENT_REJECTED, APPROVED]
+ *           enum: [PENDING_PAYMENT, OPENED, ASSIGNED, CLARIFICATION_REQUESTED, IN_DESIGN, PENDING_QC, QC_REJECTED, PENDING_CLIENT_REVIEW, CLIENT_REJECTED, APPROVED]
  *         description: Filter by case status
  *       - in: query
  *         name: patientId
@@ -246,7 +246,7 @@
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [PENDING_PAYMENT, OPENED, ASSIGNED, IN_DESIGN, PENDING_QC, QC_REJECTED, PENDING_CLIENT_REVIEW, CLIENT_REJECTED, APPROVED]
+ *                 enum: [PENDING_PAYMENT, OPENED, ASSIGNED, CLARIFICATION_REQUESTED, IN_DESIGN, PENDING_QC, QC_REJECTED, PENDING_CLIENT_REVIEW, CLIENT_REJECTED, APPROVED]
  *                 example: IN_DESIGN
  *               note:
  *                 type: string

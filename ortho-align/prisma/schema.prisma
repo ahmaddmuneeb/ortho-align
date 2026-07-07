@@ -37,6 +37,7 @@ enum CaseStatus {
   PENDING_APPROVAL
   OPENED
   ASSIGNED
+  CLARIFICATION_REQUESTED
   IN_DESIGN
   PENDING_QC
   QC_REJECTED
@@ -44,6 +45,16 @@ enum CaseStatus {
   CLIENT_REJECTED
   APPROVED
   CANCELLED
+}
+
+enum ClarificationCategory {
+  WRONG_FILES
+  MISSING_SCANS
+  DISTORTED_SCAN_DATA
+  MISMATCHED_PATIENT_DATA
+  MISSING_RECORDS
+  POOR_SCAN_QUALITY
+  OTHER_TECHNICAL_ISSUE
 }
 
 enum PaymentStatus {
@@ -107,6 +118,7 @@ model User {
   workflowLogs         CaseWorkflowLog[]
   comments             CaseComment[]
   productionUrls       CaseProductionUrl[]
+  clarifications       CaseClarification[]
   portalPatient        Patient?            @relation("PatientPortalUser")
 
   @@map("users")
@@ -139,6 +151,9 @@ model Case {
   qcId            String?
   notes           String?
   refinementCount Int        @default(0)
+  caseNumber      Int        @default(1)
+  revisionNumber  Int        @default(1)
+  dueDate         DateTime?
   paymentProofUrl String?
   submittedAt     DateTime?
   createdAt       DateTime   @default(now())
@@ -155,6 +170,7 @@ model Case {
   prescription   Prescription?
   comments       CaseComment[]
   productionUrls CaseProductionUrl[]
+  clarifications CaseClarification[]
 
   @@index([patientId])
   @@index([createdById])
@@ -222,6 +238,7 @@ model CaseFile {
   fileUrl     String
   fileSize    Int
   mimeType    String
+  version     String       @default("1-1")
   uploadedAt  DateTime     @default(now())
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
@@ -343,4 +360,37 @@ model CaseProductionUrl {
 
   @@index([caseId])
   @@map("case_production_urls")
+}
+
+model CaseClarification {
+  id            String                @id @default(cuid())
+  caseId        String
+  requestedById String
+  category      ClarificationCategory
+  message       String
+  resolvedAt    DateTime?
+  createdAt     DateTime              @default(now())
+
+  case        Case                           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  requestedBy User                           @relation(fields: [requestedById], references: [id])
+  attachments CaseClarificationAttachment[]
+
+  @@index([caseId])
+  @@index([createdAt])
+  @@map("case_clarifications")
+}
+
+model CaseClarificationAttachment {
+  id              String   @id @default(cuid())
+  clarificationId String
+  fileName        String
+  fileUrl         String
+  fileSize        Int
+  mimeType        String
+  createdAt       DateTime @default(now())
+
+  clarification CaseClarification @relation(fields: [clarificationId], references: [id], onDelete: Cascade)
+
+  @@index([clarificationId])
+  @@map("case_clarification_attachments")
 }

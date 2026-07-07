@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { CaseList, CaseListSkeleton } from '../components/CaseList';
 import { Alert } from '../components/ui';
@@ -9,8 +9,10 @@ import { usePagination } from '../lib/usePagination';
 import type { CaseRecord, CaseStatus } from '../types/case';
 
 export function CasesPage() {
+  const [searchParams] = useSearchParams();
+  const initialStatus = (searchParams.get('status') as CaseStatus | null) ?? '';
   const [cases, setCases] = useState<CaseRecord[]>([]);
-  const [statusFilter, setStatusFilter] = useState<'' | CaseStatus>('');
+  const [statusFilter, setStatusFilter] = useState<'' | CaseStatus>(initialStatus);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 

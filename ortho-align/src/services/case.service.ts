@@ -15,12 +15,15 @@ export class CaseService {
       throw new Error('Patient not found');
     }
 
+    const caseNumber = (await prisma.case.count({ where: { patientId: data.patientId } })) + 1;
+
     const newCase = await prisma.case.create({
       data: {
         patientId: data.patientId,
         createdById: data.createdById,
         notes: data.notes,
         status: CaseStatus.PENDING_PAYMENT,
+        caseNumber,
       },
       include: {
         patient: true,
@@ -51,6 +54,7 @@ export class CaseService {
     designerId: string;
     qcId: string;
     assignedById: string;
+    dueDate?: Date;
   }) {
     const caseRecord = await prisma.case.findUnique({
       where: { id: data.caseId },
@@ -83,6 +87,7 @@ export class CaseService {
           designerId: data.designerId,
           qcId: data.qcId,
           status: CaseStatus.ASSIGNED,
+          ...(data.dueDate && { dueDate: data.dueDate }),
         },
         include: {
           designer: {

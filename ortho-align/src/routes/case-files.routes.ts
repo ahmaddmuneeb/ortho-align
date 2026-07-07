@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import multer from 'multer';
 import { authenticate, authorize, denyPatient } from '../middleware/auth';
 import { AuthRequest } from '../types';
-import { UserRole, FileCategory } from '@prisma/client';
+import { UserRole, FileCategory, CaseStatus } from '@prisma/client';
 import { S3Service } from '../services/s3.service';
 import { CaseFileService } from '../services/case-file.service';
 import { CaseService } from '../services/case.service';
@@ -80,7 +80,7 @@ const upload = multer({
  */
 router.post(
   '/:id/files',
-  authorize(UserRole.CLIENT, UserRole.ADMIN),
+  authorize(UserRole.CLIENT, UserRole.ADMIN, UserRole.EMPLOYEE),
   upload.array('files', 10),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -95,8 +95,8 @@ router.post(
 
       const fileCategory = S3Service.getCategoryFromString(category);
       if (!fileCategory) {
-        res.status(400).json({ 
-          error: 'Invalid category. Must be one of: SCAN, PHOTO, XRAY, OTHER' 
+        res.status(400).json({
+          error: 'Invalid category. Must be one of: SCAN, PHOTO, XRAY, OTHER'
         });
         return;
       }
@@ -115,6 +115,16 @@ router.post(
       if (req.user!.role === UserRole.CLIENT && caseRecord.createdById !== req.user!.id) {
         res.status(403).json({ error: 'Forbidden - can only upload to your own cases' });
         return;
+      }
+
+      if (req.user!.role === UserRole.EMPLOYEE) {
+        const isAssignedDesigner = caseRecord.designerId === req.user!.id;
+        if (!isAssignedDesigner || caseRecord.status !== CaseStatus.IN_DESIGN) {
+          res.status(403).json({
+            error: 'Forbidden - the case must be assigned to you and in IN_DESIGN status to upload files',
+          });
+          return;
+        }
       }
 
       for (const file of uploadedFiles) {
@@ -146,7 +156,11 @@ router.post(
 
       const uploadedFileData = await Promise.all(uploadPromises);
 
-      await CaseFileService.addFilesToCase(caseId, uploadedFileData);
+      await CaseFileService.addFilesToCase(
+        caseId,
+        uploadedFileData,
+        `${caseRecord.caseNumber}-${caseRecord.revisionNumber}`
+      );
 
       const files = await CaseFileService.getCaseFiles(caseId);
 
@@ -290,7 +304,7 @@ router.get('/:id/files', async (req: AuthRequest, res: Response): Promise<void> 
  */
 router.delete(
   '/:id/files/:fileId',
-  authorize(UserRole.CLIENT, UserRole.ADMIN),
+  authorize(UserRole.CLIENT, UserRole.ADMIN, UserRole.EMPLOYEE),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const caseId = req.params.id as string;
@@ -311,6 +325,17 @@ router.delete(
       if (req.user!.role === UserRole.CLIENT && file.case.createdById !== req.user!.id) {
         res.status(403).json({ error: 'Forbidden' });
         return;
+      }
+
+      if (req.user!.role === UserRole.EMPLOYEE) {
+        const caseRecord = await CaseService.getCaseById(caseId);
+        const isAssignedDesigner = caseRecord?.designerId === req.user!.id;
+        if (!isAssignedDesigner || caseRecord?.status !== CaseStatus.IN_DESIGN) {
+          res.status(403).json({
+            error: 'Forbidden - the case must be assigned to you and in IN_DESIGN status to delete files',
+          });
+          return;
+        }
       }
 
       const result = await CaseFileService.deleteFile(fileId);

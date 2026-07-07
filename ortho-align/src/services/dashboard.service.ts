@@ -1,5 +1,17 @@
 import prisma from '../lib/prisma';
-import { CaseStatus } from '@prisma/client';
+import { CaseStatus, EmployeeType } from '@prisma/client';
+
+export interface EmployeeDashboardStats {
+  totalAssigned: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  waitingForClarification: number;
+  declined: number;
+  revisionCases: number;
+  completedRevisions: number;
+  avgCompletionDays: number | null;
+}
 
 export interface DashboardStats {
   totalPatients: number;
@@ -14,6 +26,7 @@ export interface DashboardStats {
     approvalRequired: number;
     completed: number;
     cancelled: number;
+    clarificationRequired: number;
   };
 }
 
@@ -74,6 +87,9 @@ export class DashboardService {
       approvalRequired: allCases.filter((c) => c.status === CaseStatus.PENDING_CLIENT_REVIEW).length,
       completed: allCases.filter((c) => c.status === CaseStatus.APPROVED).length,
       cancelled: allCases.filter((c) => c.status === CaseStatus.CANCELLED).length,
+      clarificationRequired: allCases.filter(
+        (c) => c.status === CaseStatus.CLARIFICATION_REQUESTED
+      ).length,
     };
 
     return {
@@ -83,6 +99,77 @@ export class DashboardService {
       totalRefinements,
       refinementsThisMonth,
       casesByStatus,
+    };
+  }
+
+  static async getEmployeeDashboard(
+    employeeId: string,
+    employeeType: EmployeeType | null | undefined
+  ): Promise<EmployeeDashboardStats> {
+    const whereClause: any = { OR: [] };
+    if (employeeType === EmployeeType.DESIGNER || employeeType === EmployeeType.BOTH) {
+      whereClause.OR.push({ designerId: employeeId });
+    }
+    if (employeeType === EmployeeType.QC || employeeType === EmployeeType.BOTH) {
+      whereClause.OR.push({ qcId: employeeId });
+    }
+
+    const cases = await prisma.case.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        status: true,
+        revisionNumber: true,
+        workflowLogs: {
+          select: { toStatus: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    const totalAssigned = cases.length;
+    const completed = cases.filter((c) => c.status === CaseStatus.APPROVED).length;
+    const inProgress = cases.filter(
+      (c) => c.status === CaseStatus.IN_DESIGN || c.status === CaseStatus.PENDING_QC
+    ).length;
+    const pending = cases.filter((c) => c.status === CaseStatus.ASSIGNED).length;
+    const waitingForClarification = cases.filter(
+      (c) => c.status === CaseStatus.CLARIFICATION_REQUESTED
+    ).length;
+    const declined = cases.filter((c) => c.status === CaseStatus.CLIENT_REJECTED).length;
+    const revisionCases = cases.filter((c) => c.revisionNumber > 1).length;
+    const completedRevisions = cases.filter(
+      (c) => c.status === CaseStatus.APPROVED && c.revisionNumber > 1
+    ).length;
+
+    const completionDurations: number[] = [];
+    for (const c of cases) {
+      if (c.status !== CaseStatus.APPROVED) continue;
+      const assignedLog = c.workflowLogs.find((l) => l.toStatus === CaseStatus.ASSIGNED);
+      const approvedLog = [...c.workflowLogs].reverse().find((l) => l.toStatus === CaseStatus.APPROVED);
+      if (assignedLog && approvedLog) {
+        const days =
+          (approvedLog.createdAt.getTime() - assignedLog.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+        completionDurations.push(days);
+      }
+    }
+    const avgCompletionDays =
+      completionDurations.length > 0
+        ? Number(
+            (completionDurations.reduce((sum, d) => sum + d, 0) / completionDurations.length).toFixed(1)
+          )
+        : null;
+
+    return {
+      totalAssigned,
+      completed,
+      inProgress,
+      pending,
+      waitingForClarification,
+      declined,
+      revisionCases,
+      completedRevisions,
+      avgCompletionDays,
     };
   }
 }

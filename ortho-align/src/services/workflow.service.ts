@@ -26,6 +26,17 @@ const statusTransitions: StatusTransition[] = [
     allowedEmployeeTypes: [EmployeeType.DESIGNER, EmployeeType.BOTH],
   },
   {
+    from: CaseStatus.ASSIGNED,
+    to: CaseStatus.CLARIFICATION_REQUESTED,
+    allowedRoles: [UserRole.EMPLOYEE],
+    allowedEmployeeTypes: [EmployeeType.DESIGNER, EmployeeType.BOTH],
+  },
+  {
+    from: CaseStatus.CLARIFICATION_REQUESTED,
+    to: CaseStatus.ASSIGNED,
+    allowedRoles: [UserRole.CLIENT],
+  },
+  {
     from: CaseStatus.IN_DESIGN,
     to: CaseStatus.PENDING_QC,
     allowedRoles: [UserRole.EMPLOYEE],
@@ -119,10 +130,13 @@ export class WorkflowService {
 
     // Check if this is a refinement (rejection)
     const isRefinement = newStatus === CaseStatus.QC_REJECTED || newStatus === CaseStatus.CLIENT_REJECTED;
-    
+
     const updateData: any = { status: newStatus };
     if (isRefinement) {
       updateData.refinementCount = { increment: 1 };
+    }
+    if (newStatus === CaseStatus.CLIENT_REJECTED) {
+      updateData.revisionNumber = { increment: 1 };
     }
 
     const updatedCase = await prisma.$transaction([

@@ -1,6 +1,12 @@
 import type { AuthUser } from '../types/auth';
 
-export function getEmployeeHomePath(employeeType: AuthUser['employeeType']): string {
+/** Landing page after employee login. */
+export function getEmployeeHomePath(_employeeType: AuthUser['employeeType']): string {
+  return '/employee/dashboard';
+}
+
+/** Default work queue for an employee (designer/QC/both default to designer). */
+export function getEmployeeQueuePath(employeeType: AuthUser['employeeType']): string {
   if (employeeType === 'QC') return '/employee/qc';
   if (employeeType === 'DESIGNER') return '/employee/designer';
   if (employeeType === 'BOTH') return '/employee/designer';
