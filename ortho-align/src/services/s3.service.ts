@@ -1,10 +1,13 @@
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl as presignUrl } from '@aws-sdk/s3-request-presigner';
 import { FileCategory } from '@prisma/client';
 import {
   buildS3PublicUrl,
   createS3Client,
   getS3BucketName,
 } from '../config/aws';
+
+const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
 
 const s3Client = createS3Client();
 const BUCKET_NAME = () => getS3BucketName();
@@ -56,6 +59,23 @@ export class S3Service {
     });
 
     await s3Client.send(command);
+  }
+
+  /**
+   * The bucket is private, so `fileUrl` (as stored) is not directly fetchable.
+   * Swap it for a short-lived presigned GET URL before sending it to a client.
+   */
+  static async getSignedUrl(fileUrl: string): Promise<string> {
+    const key = fileUrl.split('.amazonaws.com/')[1];
+    if (!key) return fileUrl;
+
+    try {
+      const command = new GetObjectCommand({ Bucket: BUCKET_NAME(), Key: key });
+      return await presignUrl(s3Client, command, { expiresIn: SIGNED_URL_TTL_SECONDS });
+    } catch (error) {
+      console.error('Failed to sign S3 URL:', error);
+      return fileUrl;
+    }
   }
 
   static getCategoryFromString(category: string): FileCategory | null {

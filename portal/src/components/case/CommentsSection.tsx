@@ -49,7 +49,10 @@ export function CommentsSection({
   }, [load]);
 
   const postComment = async (files?: File[]) => {
-    if (!text.trim()) return;
+    if (!text.trim()) {
+      setError('Please add a comment before attaching files.');
+      return;
+    }
     setPosting(true);
     try {
       const formData = new FormData();
@@ -189,7 +192,7 @@ export function CommentsSection({
               onUpload={async (files) => {
                 await postComment(files);
               }}
-              disabled={posting || !text.trim()}
+              disabled={posting}
             />
           </div>
         </form>

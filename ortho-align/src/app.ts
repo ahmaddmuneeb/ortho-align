@@ -20,12 +20,14 @@ import employeeRoutes from './routes/employee.routes';
 import designerRoutes from './routes/designer.routes';
 import qcRoutes from './routes/qc.routes';
 import patientPortalRoutes from './routes/patient.routes';
+import { signFileUrls } from './middleware/sign-file-urls.middleware';
 
 const app: Application = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api', signFileUrls);
 
 app.get('/', (req: Request, res: Response) => {
   res.json({
