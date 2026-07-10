@@ -276,6 +276,61 @@ router.get('/:id/production/urls', async (req: AuthRequest, res: Response): Prom
 
 /**
  * @swagger
+ * /api/cases/{id}/production/files:
+ *   get:
+ *     tags: [Production (Designer)]
+ *     summary: Get production files
+ *     description: Get all production/treatment-plan files for a case (Designer, QC, Client, Admin). This is the only read path for PRODUCTION-category files — the generic case-files endpoint excludes them for the CLIENT role.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Case ID
+ *     responses:
+ *       200:
+ *         description: List of production files
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Case not found
+ */
+router.get('/:id/production/files', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const caseId = req.params.id as string;
+
+    const caseRecord = await CaseService.getCaseById(caseId);
+    if (!caseRecord) {
+      res.status(404).json({ error: 'Case not found' });
+      return;
+    }
+
+    const canAccess = await ProductionService.canUserAccessProduction(
+      caseId,
+      req.user!.id,
+      req.user!.role,
+      req.user!.employeeType
+    );
+
+    if (!canAccess) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const files = await CaseFileService.getCaseFiles(caseId, FileCategory.PRODUCTION);
+
+    res.json({ files });
+  } catch (error) {
+    console.error('Get production files error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
  * /api/cases/{id}/production/urls/{urlId}:
  *   delete:
  *     tags: [Production (Designer)]

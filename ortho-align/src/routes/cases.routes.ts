@@ -139,8 +139,8 @@ router.post('/:id/assign', authorize(UserRole.ADMIN), async (req: AuthRequest, r
     const id = req.params.id as string;
     const { designerId, qcId, dueDate } = req.body;
 
-    if (!designerId || !qcId) {
-      res.status(400).json({ error: 'Designer ID and QC ID are required' });
+    if (!designerId) {
+      res.status(400).json({ error: 'Designer ID is required' });
       return;
     }
 
@@ -153,7 +153,7 @@ router.post('/:id/assign', authorize(UserRole.ADMIN), async (req: AuthRequest, r
     const assignedCase = await CaseService.assignCase({
       caseId: id,
       designerId,
-      qcId,
+      qcId: qcId || undefined,
       assignedById: req.user!.id,
       dueDate: parsedDueDate,
     });

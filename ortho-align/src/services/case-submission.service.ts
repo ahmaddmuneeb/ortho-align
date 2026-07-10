@@ -103,7 +103,7 @@ export class CaseSubmissionService {
   static async approvePaymentAndAssign(
     caseId: string,
     designerId: string,
-    qcId: string,
+    qcId: string | undefined,
     adminId: string
   ) {
     const caseRecord = await prisma.case.findUnique({
@@ -122,21 +122,25 @@ export class CaseSubmissionService {
       where: { id: designerId },
     });
 
-    const qc = await prisma.user.findUnique({
-      where: { id: qcId },
-    });
-
-    if (!designer || !qc) {
-      throw new Error('Designer or QC not found');
+    if (!designer) {
+      throw new Error('Designer not found');
     }
 
-    const [updatedCase] = await prisma.$transaction([
+    let qc = null;
+    if (qcId) {
+      qc = await prisma.user.findUnique({ where: { id: qcId } });
+      if (!qc) {
+        throw new Error('QC not found');
+      }
+    }
+
+    const operations: any[] = [
       prisma.case.update({
         where: { id: caseId },
         data: {
           status: CaseStatus.IN_DESIGN,
           designerId,
-          qcId,
+          ...(qcId && { qcId }),
         },
         include: {
           patient: true,
@@ -156,24 +160,33 @@ export class CaseSubmissionService {
           },
         },
       }),
-      prisma.caseAssignment.create({
-        data: {
-          caseId,
-          designerId,
-          qcId,
-          assignedById: adminId,
-        },
-      }),
       prisma.caseWorkflowLog.create({
         data: {
           caseId,
           fromStatus: CaseStatus.PENDING_APPROVAL,
           toStatus: CaseStatus.IN_DESIGN,
           performedById: adminId,
-          note: `Payment approved. Assigned to designer: ${designer.name}, QC: ${qc.name}`,
+          note: qc
+            ? `Payment approved. Assigned to designer: ${designer.name}, QC: ${qc.name}`
+            : `Payment approved. Assigned to designer: ${designer.name}`,
         },
       }),
-    ]);
+    ];
+
+    if (qc) {
+      operations.push(
+        prisma.caseAssignment.create({
+          data: {
+            caseId,
+            designerId,
+            qcId: qcId!,
+            assignedById: adminId,
+          },
+        }),
+      );
+    }
+
+    const [updatedCase] = await prisma.$transaction(operations);
 
     return updatedCase;
   }

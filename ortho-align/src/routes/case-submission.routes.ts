@@ -222,15 +222,15 @@ router.post(
       const caseId = req.params.id as string;
       const { designerId, qcId } = req.body;
 
-      if (!designerId || !qcId) {
-        res.status(400).json({ error: 'Designer ID and QC ID are required' });
+      if (!designerId) {
+        res.status(400).json({ error: 'Designer ID is required' });
         return;
       }
 
       const approvedCase = await CaseSubmissionService.approvePaymentAndAssign(
         caseId,
         designerId,
-        qcId,
+        qcId || undefined,
         req.user!.id
       );
 

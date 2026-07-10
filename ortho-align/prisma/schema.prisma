@@ -220,6 +220,7 @@ model CaseWorkflowLog {
   toStatus     CaseStatus
   performedById String
   note         String?
+  version      String?
   createdAt    DateTime    @default(now())
 
   case        Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
@@ -353,6 +354,7 @@ model CaseProductionUrl {
   url         String
   description String?
   addedById   String
+  version     String   @default("1-1")
   createdAt   DateTime @default(now())
 
   case      Case @relation(fields: [caseId], references: [id], onDelete: Cascade)

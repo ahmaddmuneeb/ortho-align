@@ -253,7 +253,13 @@ router.get('/:id/files', async (req: AuthRequest, res: Response): Promise<void> 
       category = parsedCategory;
     }
 
-    const files = await CaseFileService.getCaseFiles(caseId, category);
+    let files = await CaseFileService.getCaseFiles(caseId, category);
+
+    // Doctors review production/treatment-plan material through the dedicated
+    // production routes only, never the generic file list.
+    if (req.user!.role === UserRole.CLIENT) {
+      files = files.filter((f) => f.category !== FileCategory.PRODUCTION);
+    }
 
     res.json({ files });
   } catch (error) {

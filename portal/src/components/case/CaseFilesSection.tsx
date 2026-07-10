@@ -1,45 +1,71 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
-import { fileCategoryLabel } from '../../lib/fileCategories';
 import { toast } from '../../lib/toast';
 import { FileUpload } from '../FileUpload';
+import { StlViewer } from './StlViewer';
+import { FilePreviewModal, isPreviewable } from './FilePreviewModal';
 import { Alert } from '../ui';
 import { SkeletonText } from '../ui/Skeleton';
 import type { CaseFile, FileCategory } from '../../types/case';
 
-const UPLOAD_CATEGORIES: { value: FileCategory; label: string }[] = [
-  { value: 'SCAN', label: 'Intraoral scan' },
-  { value: 'PHOTO', label: 'Clinical photo' },
-  { value: 'XRAY', label: 'X-ray' },
-  { value: 'OTHER', label: 'Other' },
+interface FileSectionSpec {
+  category: FileCategory;
+  title: string;
+  uploadLabel: string;
+  hint: string;
+}
+
+const FILE_SECTIONS: FileSectionSpec[] = [
+  {
+    category: 'PHOTO',
+    title: 'Clinical images',
+    uploadLabel: 'Upload clinical photos',
+    hint: 'JPG, PNG — max 50MB each',
+  },
+  {
+    category: 'XRAY',
+    title: 'X-rays',
+    uploadLabel: 'Upload X-rays',
+    hint: 'JPG, PNG, PDF — max 50MB each',
+  },
+  {
+    category: 'SCAN',
+    title: 'Scans',
+    uploadLabel: 'Upload intraoral scans',
+    hint: 'STL, DICOM, PDF — max 50MB each',
+  },
+  {
+    category: 'OTHER',
+    title: 'Other documents',
+    uploadLabel: 'Upload other files',
+    hint: 'Max 50MB each',
+  },
 ];
+
+function isStl(file: CaseFile): boolean {
+  return file.fileName.toLowerCase().endsWith('.stl');
+}
 
 interface CaseFilesSectionProps {
   caseId: string;
   canUpload?: boolean;
   canDelete?: boolean;
-  /** Production files appear in ProductionSection instead */
-  hideProduction?: boolean;
 }
 
 export function CaseFilesSection({
   caseId,
   canUpload = true,
   canDelete = true,
-  hideProduction = true,
 }: CaseFilesSectionProps) {
   const [files, setFiles] = useState<CaseFile[]>([]);
-  const [category, setCategory] = useState<FileCategory>('SCAN');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<CaseFile | null>(null);
 
   const load = useCallback(async () => {
     try {
       const data = await api.get<{ files: CaseFile[] }>(`/api/cases/${caseId}/files`);
-      const all = data.files ?? [];
-      setFiles(
-        hideProduction ? all.filter((f) => f.category !== 'PRODUCTION') : all,
-      );
+      setFiles((data.files ?? []).filter((f) => f.category !== 'PRODUCTION'));
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load files');
@@ -52,7 +78,7 @@ export function CaseFilesSection({
     load();
   }, [load]);
 
-  const handleUpload = async (selected: File[]) => {
+  const handleUpload = (category: FileCategory) => async (selected: File[]) => {
     const formData = new FormData();
     formData.append('category', category);
     selected.forEach((f) => formData.append('files', f));
@@ -68,89 +94,123 @@ export function CaseFilesSection({
     toast.success('File removed');
   };
 
-  return (
-    <section
-      id="case-files"
-      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-    >
-      <h2 className="text-lg font-semibold text-ink">Case files</h2>
-
-      {loading && (
+  if (loading) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-ink">Case files</h2>
         <div className="mt-4">
           <SkeletonText lines={3} />
         </div>
-      )}
-      {error && (
-        <div className="mt-4">
-          <Alert variant="error">{error}</Alert>
-        </div>
-      )}
+      </section>
+    );
+  }
 
-      {canUpload && (
-        <div className="mt-4 flex flex-wrap items-end gap-4">
-          <label className="text-sm font-medium text-slate-700">
-            Category
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as FileCategory)}
-              className="mt-1 block rounded-md border border-slate-300 px-3 py-2 text-sm"
-            >
-              {UPLOAD_CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="min-w-[200px] flex-1">
-            <FileUpload
-              label="Upload files"
-              hint="JPG, PNG, PDF, DICOM, STL — max 50MB each"
-              onUpload={handleUpload}
-            />
-          </div>
-        </div>
-      )}
+  if (error) {
+    return <Alert variant="error">{error}</Alert>;
+  }
 
-      {!loading && files.length === 0 && (
-        <div className="mt-4">
-          <Alert variant="info">No files uploaded yet.</Alert>
-        </div>
-      )}
+  return (
+    <div id="case-files" className="space-y-4">
+      {FILE_SECTIONS.map((spec) => {
+        const sectionFiles = files.filter((f) => f.category === spec.category);
+        return (
+          <section
+            key={spec.category}
+            className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <h3 className="text-base font-semibold text-ink">{spec.title}</h3>
 
-      {files.length > 0 && (
-        <ul className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-100">
-          {files.map((f) => (
-            <li
-              key={f.id}
-              className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
-            >
-              <div>
-                <a
-                  href={f.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-brand-700 hover:underline"
-                >
-                  {f.fileName}
-                </a>
-                <p className="text-xs text-muted">
-                  {fileCategoryLabel(f.category)} · {(f.fileSize / 1024).toFixed(0)} KB
-                </p>
+            {canUpload && (
+              <div className="mt-3">
+                <FileUpload
+                  label={spec.uploadLabel}
+                  hint={spec.hint}
+                  onUpload={handleUpload(spec.category)}
+                />
               </div>
-              {canDelete && (
-                <button
-                  type="button"
-                  onClick={() => handleDelete(f.id)}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Delete
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+            )}
+
+            {sectionFiles.length === 0 && (
+              <p className="mt-3 text-sm text-muted">No files uploaded yet.</p>
+            )}
+
+            {sectionFiles.length > 0 && (
+              <ul className="mt-3 space-y-3">
+                {sectionFiles.map((f) => (
+                  <li key={f.id} className="rounded-lg border border-slate-100">
+                    {spec.category === 'SCAN' && isStl(f) ? (
+                      <div className="p-3">
+                        <StlViewer fileUrl={f.fileUrl} />
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <span className="font-medium text-ink">{f.fileName}</span>
+                          <div className="flex items-center gap-3">
+                            <a
+                              href={f.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-brand-700 hover:underline"
+                            >
+                              Download
+                            </a>
+                            {canDelete && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(f.id)}
+                                className="text-xs text-red-600 hover:underline"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                        <div>
+                          {isPreviewable(f) ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFile(f)}
+                              className="font-medium text-brand-700 hover:underline"
+                            >
+                              {f.fileName}
+                            </button>
+                          ) : (
+                            <a
+                              href={f.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-brand-700 hover:underline"
+                            >
+                              {f.fileName}
+                            </a>
+                          )}
+                          <p className="text-xs text-muted">
+                            {(f.fileSize / 1024).toFixed(0)} KB
+                          </p>
+                        </div>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(f.id)}
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+
+      {previewFile && (
+        <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
       )}
-    </section>
+    </div>
   );
 }

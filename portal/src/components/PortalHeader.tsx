@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
   ClipboardCheck,
+  ClipboardList,
   FolderOpen,
   LayoutDashboard,
   ListChecks,
@@ -55,6 +56,9 @@ function navForUser(user: AuthUser): NavItem[] {
           label: 'My queue',
           icon: ListChecks,
         });
+      }
+      if (user.employeeType === 'QC' || user.employeeType === 'BOTH') {
+        items.push({ to: '/employee/qc-queue', label: 'Open QC queue', icon: ClipboardList });
       }
       items.push({ to: '/employee/history', label: 'History', icon: FolderOpen });
       return items;

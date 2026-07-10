@@ -16,6 +16,7 @@ import { EmployeeQueuePage } from './pages/employee/EmployeeQueuePage';
 import { EmployeeCaseDetailPage } from './pages/employee/EmployeeCaseDetailPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { EmployeeCaseHistoryPage } from './pages/employee/EmployeeCaseHistoryPage';
+import { OpenQcQueuePage } from './pages/employee/OpenQcQueuePage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminUserDetailPage } from './pages/admin/AdminUserDetailPage';
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="/employee/history" element={<EmployeeCaseHistoryPage />} />
           <Route path="/employee/designer" element={<EmployeeQueuePage />} />
           <Route path="/employee/qc" element={<EmployeeQueuePage />} />
+          <Route path="/employee/qc-queue" element={<OpenQcQueuePage />} />
           <Route path="/employee/cases/:id" element={<EmployeeCaseDetailPage />} />
         </Route>
       </Route>

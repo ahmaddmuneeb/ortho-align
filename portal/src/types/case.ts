@@ -74,6 +74,7 @@ export interface CaseWorkflowLog {
   toStatus: CaseStatus;
   performedById: string;
   note?: string | null;
+  version?: string | null;
   createdAt: string;
   performedBy?: CaseUserRef;
 }
@@ -84,6 +85,7 @@ export interface ProductionUrl {
   url: string;
   description?: string | null;
   addedById: string;
+  version: string;
   createdAt: string;
   addedBy?: CaseUserRef;
 }

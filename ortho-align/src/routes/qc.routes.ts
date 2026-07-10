@@ -4,8 +4,82 @@ import { AuthRequest } from '../types';
 import { EmployeeType, CaseStatus } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { WorkflowService } from '../services/workflow.service';
+import { CaseService } from '../services/case.service';
 
 const router = Router();
+
+/**
+ * @swagger
+ * /api/qc/queue:
+ *   get:
+ *     tags: [QC Review]
+ *     summary: Get the Open QC Queue
+ *     description: Cases that are ready for QC review (PENDING_QC) but have no QC reviewer assigned yet
+ *     responses:
+ *       200:
+ *         description: List of unclaimed cases
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - must be QC employee
+ */
+router.get('/queue', authenticate, authorizeEmployee(EmployeeType.QC, EmployeeType.BOTH), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const cases = await prisma.case.findMany({
+      where: { status: CaseStatus.PENDING_QC, qcId: null },
+      include: {
+        patient: { select: { id: true, name: true, dateOfBirth: true, gender: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        designer: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { updatedAt: 'asc' },
+    });
+
+    res.json({ cases });
+  } catch (error) {
+    console.error('Get open QC queue error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/qc/cases/{id}/claim:
+ *   post:
+ *     tags: [QC Review]
+ *     summary: Claim an unassigned case from the Open QC Queue
+ *     description: Self-assigns the calling QC employee to a case with no QC reviewer yet
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Case claimed
+ *       400:
+ *         description: Case already has a QC reviewer, or has no designer yet
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - must be QC employee
+ *       404:
+ *         description: Case not found
+ */
+router.post('/cases/:id/claim', authenticate, authorizeEmployee(EmployeeType.QC, EmployeeType.BOTH), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const caseId = req.params.id as string;
+    const updatedCase = await CaseService.claimQc(caseId, req.user!.id);
+
+    res.json({ message: 'Case claimed', case: updatedCase });
+  } catch (error: any) {
+    console.error('Claim QC case error:', error);
+    res.status(error.message?.includes('not found') ? 404 : 400).json({
+      error: error.message || 'Internal server error',
+    });
+  }
+});
 
 /**
  * @swagger

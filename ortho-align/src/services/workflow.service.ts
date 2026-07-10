@@ -139,6 +139,9 @@ export class WorkflowService {
       updateData.revisionNumber = { increment: 1 };
     }
 
+    // This log records an action taken *on* the pre-transition version (e.g. "version 1-1 was
+    // rejected"), even though CLIENT_REJECTED bumps the case's revisionNumber to start the next
+    // version — the revision counter is a case-level side effect, not what this event is about.
     const updatedCase = await prisma.$transaction([
       prisma.case.update({
         where: { id: caseId },
@@ -151,6 +154,7 @@ export class WorkflowService {
           toStatus: newStatus,
           performedById: userId,
           note,
+          version: `${caseRecord.caseNumber}-${caseRecord.revisionNumber}`,
         },
       }),
     ]);

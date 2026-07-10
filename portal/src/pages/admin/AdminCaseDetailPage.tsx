@@ -5,6 +5,7 @@ import { AdminPaymentPanel } from '../../components/case/AdminPaymentPanel';
 import { AdminWorkflowPanel } from '../../components/case/AdminWorkflowPanel';
 import { CaseFilesSection } from '../../components/case/CaseFilesSection';
 import { ClarificationBanner } from '../../components/case/ClarificationBanner';
+import { RejectionNoticeBanner } from '../../components/case/RejectionNoticeBanner';
 import { CommentsSection } from '../../components/case/CommentsSection';
 import { ProductionSection } from '../../components/case/ProductionSection';
 import { PrescriptionForm } from '../../components/PrescriptionForm';
@@ -77,8 +78,8 @@ export function AdminCaseDetailPage() {
   const qcs = employees.filter((e) => e.employeeType === 'QC' || e.employeeType === 'BOTH');
 
   const approvePayment = async () => {
-    if (!id || !designerId || !qcId) {
-      setError('Select designer and QC');
+    if (!id || !designerId) {
+      setError('Select a designer');
       return;
     }
     setActing(true);
@@ -86,7 +87,7 @@ export function AdminCaseDetailPage() {
     try {
       const data = await api.post<{ case: CaseRecord }>(
         `/api/cases/${id}/approve-payment`,
-        { designerId, qcId },
+        { designerId, qcId: qcId || undefined },
       );
       setCaseRecord(data.case);
       toast.success('Payment approved — case in design');
@@ -100,8 +101,8 @@ export function AdminCaseDetailPage() {
   };
 
   const assignCase = async () => {
-    if (!id || !designerId || !qcId) {
-      setError('Select designer and QC');
+    if (!id || !designerId) {
+      setError('Select a designer');
       return;
     }
     setActing(true);
@@ -109,10 +110,10 @@ export function AdminCaseDetailPage() {
     try {
       const data = await api.post<{ case: CaseRecord }>(`/api/cases/${id}/assign`, {
         designerId,
-        qcId,
+        qcId: qcId || undefined,
       });
       setCaseRecord(data.case);
-      toast.success('Case assigned');
+      toast.success(qcId ? 'Case assigned' : 'Case assigned — QC left open for the Open QC Queue');
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Assign failed';
       setError(msg);
@@ -165,6 +166,7 @@ export function AdminCaseDetailPage() {
       {error && <Alert variant="error">{error}</Alert>}
 
       <ClarificationBanner caseRecord={caseRecord} onResolved={setCaseRecord} />
+      <RejectionNoticeBanner caseRecord={caseRecord} />
 
       {caseRecord.patientId && caseRecord.patient?.name && (
         <PatientPortalAccessPanel
@@ -283,7 +285,7 @@ export function AdminCaseDetailPage() {
               onChange={(e) => setQcId(e.target.value)}
               className={patientInputClass}
             >
-              <option value="">Select…</option>
+              <option value="">Unassigned — leave for Open QC Queue</option>
               {qcs.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name}

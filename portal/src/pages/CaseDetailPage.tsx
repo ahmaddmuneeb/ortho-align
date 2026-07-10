@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { History } from 'lucide-react';
 import { CaseFilesSection } from '../components/case/CaseFilesSection';
 import { CaseSubmissionPanel } from '../components/case/CaseSubmissionPanel';
 import { ClientReviewPanel } from '../components/case/ClientReviewPanel';
 import { ClarificationBanner } from '../components/case/ClarificationBanner';
+import { RejectionNoticeBanner } from '../components/case/RejectionNoticeBanner';
 import { CommentsSection } from '../components/case/CommentsSection';
 import { PaymentSection } from '../components/case/PaymentSection';
 import { ProductionSection } from '../components/case/ProductionSection';
+import { VersionHistoryPanel } from '../components/case/VersionHistoryPanel';
+import { TimelineModal } from '../components/case/TimelineModal';
 import { PrescriptionForm } from '../components/PrescriptionForm';
 import { StatusBadge } from '../components/StatusBadge';
 import { patientInputClass } from '../components/PatientForm';
@@ -19,6 +23,14 @@ import { formatDisplayDate } from '../lib/patientDates';
 import { formatCaseVersion } from '../lib/caseStatus';
 import type { CaseRecord, Prescription, PrescriptionInput } from '../types/case';
 
+type DoctorTab = 'review' | 'history' | 'rx';
+
+const TABS: { key: DoctorTab; label: string }[] = [
+  { key: 'review', label: 'Treatment Review' },
+  { key: 'history', label: 'Version History' },
+  { key: 'rx', label: 'RX / Doctor Instructions' },
+];
+
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const user = useAppSelector((s) => s.auth.user);
@@ -30,6 +42,8 @@ export function CaseDetailPage() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<DoctorTab>('review');
+  const [timelineOpen, setTimelineOpen] = useState(false);
 
   const loadCase = useCallback(async () => {
     if (!id) return;
@@ -137,103 +151,123 @@ export function CaseDetailPage() {
             {` · v${formatCaseVersion(caseRecord)}`}
           </p>
         </div>
-        <StatusBadge status={caseRecord.status} />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setTimelineOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            <History className="h-4 w-4" aria-hidden />
+            Timeline
+          </button>
+          <StatusBadge status={caseRecord.status} />
+        </div>
       </div>
 
       <ClarificationBanner caseRecord={caseRecord} onResolved={setCaseRecord} canResolve />
+      <RejectionNoticeBanner caseRecord={caseRecord} />
 
-      {caseRecord.patient && (
+      <div className="border-b border-slate-200">
+        <nav className="-mb-px flex flex-wrap gap-4" aria-label="Case sections">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`border-b-2 px-1 py-3 text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? 'border-brand-600 text-brand-700'
+                  : 'border-transparent text-muted hover:text-ink'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {activeTab === 'review' && (
+        <div className="space-y-6">
+          {caseRecord.patient && (
+            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-ink">Patient</h2>
+              <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted">Name</dt>
+                  <dd>
+                    <Link
+                      to={`/patients/${caseRecord.patient.id}`}
+                      className="font-medium text-brand-700 hover:underline"
+                    >
+                      {caseRecord.patient.name}
+                    </Link>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted">Date of birth</dt>
+                  <dd>{formatDisplayDate(caseRecord.patient.dateOfBirth)}</dd>
+                </div>
+              </dl>
+            </section>
+          )}
+
+          <ClientReviewPanel caseRecord={caseRecord} onUpdate={setCaseRecord} />
+
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">Case notes</h2>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              className={`mt-3 ${patientInputClass}`}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={saveNotes}
+              loading={savingNotes}
+              loadingText="Saving…"
+              className="mt-3"
+            >
+              Save notes
+            </Button>
+          </section>
+
+          <PaymentSection caseRecord={caseRecord} onCaseUpdate={setCaseRecord} />
+          <CaseSubmissionPanel caseRecord={caseRecord} onSubmitted={setCaseRecord} />
+
+          <CaseFilesSection caseId={caseRecord.id} />
+
+          <ProductionSection caseId={caseRecord.id} />
+
+          <CommentsSection caseId={caseRecord.id} canPost />
+        </div>
+      )}
+
+      {activeTab === 'history' && <VersionHistoryPanel caseRecord={caseRecord} />}
+
+      {activeTab === 'rx' && (
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-ink">Patient</h2>
-          <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-muted">Name</dt>
-              <dd>
-                <Link
-                  to={`/patients/${caseRecord.patient.id}`}
-                  className="font-medium text-brand-700 hover:underline"
-                >
-                  {caseRecord.patient.name}
-                </Link>
-              </dd>
+          <h2 className="text-lg font-semibold text-ink">Prescription</h2>
+          {prescription === undefined ? (
+            <div className="mt-4">
+              <SkeletonForm fields={3} />
             </div>
-            <div>
-              <dt className="text-muted">Date of birth</dt>
-              <dd>{formatDisplayDate(caseRecord.patient.dateOfBirth)}</dd>
+          ) : (
+            <div className="mt-4">
+              <PrescriptionForm
+                initial={prescription}
+                onSubmit={savePrescription}
+                onDelete={canEditPrescription ? deletePrescription : undefined}
+                readOnly={!canEditPrescription}
+              />
             </div>
-          </dl>
+          )}
         </section>
       )}
 
-      <ClientReviewPanel caseRecord={caseRecord} onUpdate={setCaseRecord} />
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-ink">Case notes</h2>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          className={`mt-3 ${patientInputClass}`}
-        />
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={saveNotes}
-          loading={savingNotes}
-          loadingText="Saving…"
-          className="mt-3"
-        >
-          Save notes
-        </Button>
-      </section>
-
-      <PaymentSection caseRecord={caseRecord} onCaseUpdate={setCaseRecord} />
-      <CaseSubmissionPanel caseRecord={caseRecord} onSubmitted={setCaseRecord} />
-
-      <CaseFilesSection caseId={caseRecord.id} />
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-ink">Prescription</h2>
-        {prescription === undefined ? (
-          <div className="mt-4">
-            <SkeletonForm fields={3} />
-          </div>
-        ) : (
-          <div className="mt-4">
-            <PrescriptionForm
-              initial={prescription}
-              onSubmit={savePrescription}
-              onDelete={canEditPrescription ? deletePrescription : undefined}
-              readOnly={!canEditPrescription}
-            />
-          </div>
-        )}
-      </section>
-
-      <ProductionSection caseId={caseRecord.id} />
-
-      <CommentsSection caseId={caseRecord.id} canPost />
-
-      {caseRecord.workflowLogs && caseRecord.workflowLogs.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-ink">Timeline</h2>
-          <ul className="mt-4 space-y-2 text-sm">
-            {caseRecord.workflowLogs.map((log) => (
-              <li key={log.id} className="text-muted">
-                <span className="text-ink">
-                  {log.fromStatus ? `${log.fromStatus} → ` : ''}
-                  {log.toStatus}
-                </span>
-                {' · '}
-                {new Date(log.createdAt).toLocaleString()}
-                {log.performedBy && ` · ${log.performedBy.name}`}
-                {log.note && (
-                  <span className="block text-xs text-slate-500">{log.note}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+      {timelineOpen && (
+        <TimelineModal caseRecord={caseRecord} onClose={() => setTimelineOpen(false)} />
       )}
     </div>
   );

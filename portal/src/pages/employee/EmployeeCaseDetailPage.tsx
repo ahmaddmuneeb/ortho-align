@@ -4,6 +4,7 @@ import { CaseFilesSection } from '../../components/case/CaseFilesSection';
 import { CommentsSection } from '../../components/case/CommentsSection';
 import { ProductionSection } from '../../components/case/ProductionSection';
 import { ClarificationRequestForm } from '../../components/case/ClarificationRequestForm';
+import { RejectionNoticeBanner } from '../../components/case/RejectionNoticeBanner';
 import { PrescriptionForm } from '../../components/PrescriptionForm';
 import { FileUpload } from '../../components/FileUpload';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -186,6 +187,8 @@ export function EmployeeCaseDetailPage() {
 
       {error && <Alert variant="error">{error}</Alert>}
 
+      <RejectionNoticeBanner caseRecord={caseRecord} />
+
       {isDesigner && caseRecord.status === 'ASSIGNED' && (
         <section className="rounded-xl border border-sky-200 bg-sky-50 p-6">
           <h2 className="text-lg font-semibold text-sky-900">Designer actions</h2>
@@ -227,14 +230,9 @@ export function EmployeeCaseDetailPage() {
           <section className="rounded-xl border border-orange-200 bg-orange-50 p-6">
             <h2 className="text-lg font-semibold text-orange-900">Case declined</h2>
             <p className="mt-1 text-sm text-orange-800/90">
-              The doctor rejected this case for modification. Review their note below, then
-              accept to make the required changes and upload updated treatment files.
+              The doctor rejected this case for modification — see the revision request above.
+              Accept to make the required changes and upload updated treatment files.
             </p>
-            {caseRecord.workflowLogs?.find((l) => l.toStatus === 'CLIENT_REJECTED')?.note && (
-              <p className="mt-2 whitespace-pre-wrap rounded-lg bg-white/70 p-3 text-sm text-slate-700">
-                {caseRecord.workflowLogs.find((l) => l.toStatus === 'CLIENT_REJECTED')?.note}
-              </p>
-            )}
             <Button
               type="button"
               loading={acting}

@@ -52,7 +52,7 @@ export class CaseService {
   static async assignCase(data: {
     caseId: string;
     designerId: string;
-    qcId: string;
+    qcId?: string;
     assignedById: string;
     dueDate?: Date;
   }) {
@@ -72,20 +72,24 @@ export class CaseService {
       where: { id: data.designerId },
     });
 
-    const qc = await prisma.user.findUnique({
-      where: { id: data.qcId },
-    });
-
-    if (!designer || !qc) {
-      throw new Error('Designer or QC not found');
+    if (!designer) {
+      throw new Error('Designer not found');
     }
 
-    const [updatedCase, assignment] = await prisma.$transaction([
+    let qc = null;
+    if (data.qcId) {
+      qc = await prisma.user.findUnique({ where: { id: data.qcId } });
+      if (!qc) {
+        throw new Error('QC not found');
+      }
+    }
+
+    const operations: any[] = [
       prisma.case.update({
         where: { id: data.caseId },
         data: {
           designerId: data.designerId,
-          qcId: data.qcId,
+          ...(data.qcId && { qcId: data.qcId }),
           status: CaseStatus.ASSIGNED,
           ...(data.dueDate && { dueDate: data.dueDate }),
         },
@@ -106,21 +110,81 @@ export class CaseService {
           },
         },
       }),
-      prisma.caseAssignment.create({
-        data: {
-          caseId: data.caseId,
-          designerId: data.designerId,
-          qcId: data.qcId,
-          assignedById: data.assignedById,
-        },
-      }),
       prisma.caseWorkflowLog.create({
         data: {
           caseId: data.caseId,
           fromStatus: CaseStatus.OPENED,
           toStatus: CaseStatus.ASSIGNED,
           performedById: data.assignedById,
-          note: `Assigned to designer: ${designer.name}, QC: ${qc.name}`,
+          note: qc
+            ? `Assigned to designer: ${designer.name}, QC: ${qc.name}`
+            : `Assigned to designer: ${designer.name}`,
+        },
+      }),
+    ];
+
+    if (qc) {
+      operations.push(
+        prisma.caseAssignment.create({
+          data: {
+            caseId: data.caseId,
+            designerId: data.designerId,
+            qcId: data.qcId!,
+            assignedById: data.assignedById,
+          },
+        }),
+      );
+    }
+
+    const [updatedCase] = await prisma.$transaction(operations);
+
+    return updatedCase;
+  }
+
+  static async claimQc(caseId: string, qcUserId: string) {
+    const caseRecord = await prisma.case.findUnique({ where: { id: caseId } });
+
+    if (!caseRecord) {
+      throw new Error('Case not found');
+    }
+
+    if (caseRecord.qcId) {
+      throw new Error('This case already has a QC reviewer assigned');
+    }
+
+    if (!caseRecord.designerId) {
+      throw new Error('Case must have a designer assigned before QC can claim it');
+    }
+
+    const qc = await prisma.user.findUnique({ where: { id: qcUserId } });
+    if (!qc) {
+      throw new Error('QC user not found');
+    }
+
+    const [updatedCase] = await prisma.$transaction([
+      prisma.case.update({
+        where: { id: caseId },
+        data: { qcId: qcUserId },
+        include: {
+          designer: { select: { id: true, name: true, email: true } },
+          qc: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      prisma.caseWorkflowLog.create({
+        data: {
+          caseId,
+          toStatus: caseRecord.status,
+          performedById: qcUserId,
+          note: `QC claimed: ${qc.name}`,
+          version: `${caseRecord.caseNumber}-${caseRecord.revisionNumber}`,
+        },
+      }),
+      prisma.caseAssignment.create({
+        data: {
+          caseId,
+          designerId: caseRecord.designerId,
+          qcId: qcUserId,
+          assignedById: qcUserId,
         },
       }),
     ]);

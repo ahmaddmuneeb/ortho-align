@@ -35,12 +35,10 @@ export function ProductionSection({
         api.get<{ productionUrls: ProductionUrl[] }>(
           `/api/cases/${caseId}/production/urls`,
         ),
-        api.get<{ files: CaseFile[] }>(`/api/cases/${caseId}/files`),
+        api.get<{ files: CaseFile[] }>(`/api/cases/${caseId}/production/files`),
       ]);
       setUrls(urlData.productionUrls ?? []);
-      setProductionFiles(
-        (fileData.files ?? []).filter((f) => f.category === 'PRODUCTION'),
-      );
+      setProductionFiles(fileData.files ?? []);
       setError(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
