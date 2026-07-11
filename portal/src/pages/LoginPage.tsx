@@ -45,13 +45,12 @@ export function LoginPage() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout subtitle="Login to access your portal">
       <form
         onSubmit={handleSubmit}
         className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
-        <h2 className="text-lg font-semibold text-ink">Sign in</h2>
-        <p className="mt-1 text-sm text-muted">Access your OrthoAlign portal</p>
+        <h2 className="text-lg font-semibold text-ink">Login</h2>
 
         {successMessage && (
           <div className="mt-4">
@@ -89,23 +88,26 @@ export function LoginPage() {
           />
         </label>
 
+        <p className="mt-2 text-right text-sm">
+          <Link to="/forgot-password" className="font-medium text-brand-700 hover:underline">
+            Forgot password?
+          </Link>
+        </p>
+
         <Button
           type="submit"
           loading={submitting}
-          loadingText="Signing in…"
+          loadingText="Logging in…"
           className="mt-6 w-full py-2.5"
         >
-          Sign in
+          Login
         </Button>
 
         <p className="mt-4 text-center text-sm text-muted">
-          New practice?{' '}
+          Don't have an account?{' '}
           <Link to="/register" className="font-medium text-brand-700 hover:underline">
-            Create account
+            Sign up
           </Link>
-        </p>
-        <p className="mt-3 text-center text-xs text-muted">
-          Patient portal? Your clinic creates your login — use the email they provided.
         </p>
       </form>
     </AuthLayout>

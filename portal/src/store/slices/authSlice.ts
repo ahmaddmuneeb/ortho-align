@@ -8,6 +8,7 @@ import {
 import type {
   AuthUser,
   LoginResponse,
+  MessageResponse,
   RegisterPayload,
 } from '../../types/auth';
 
@@ -100,6 +101,20 @@ export const register = createAsyncThunk(
   'auth/register',
   async (payload: RegisterPayload) => {
     await api.post<{ user: AuthUser }>('/api/auth/register', payload, false);
+  },
+);
+
+export const forgotPassword = createAsyncThunk(
+  'auth/forgotPassword',
+  async (email: string) => {
+    return api.post<MessageResponse>('/api/auth/forgot-password', { email }, false);
+  },
+);
+
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async ({ token, password }: { token: string; password: string }) => {
+    return api.post<MessageResponse>('/api/auth/reset-password', { token, password }, false);
   },
 );
 

@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { PortalHeader } from './PortalHeader';
+import logo from '../assets/logo.png';
 
 export function PortalLayout() {
   return (
@@ -12,17 +13,22 @@ export function PortalLayout() {
   );
 }
 
-export function AuthLayout({ children }: { children: React.ReactNode }) {
+export function AuthLayout({
+  children,
+  subtitle = 'Sign up for the portal',
+  maxWidthClassName = 'max-w-md',
+}: {
+  children: React.ReactNode;
+  subtitle?: string;
+  maxWidthClassName?: string;
+}) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-brand-50 to-surface px-4 py-12">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white shadow-sm">
-          OA
-        </div>
-        <h1 className="text-2xl font-semibold text-ink">OrthoAlign</h1>
-        <p className="mt-1 text-sm text-muted">PAYG plan · Sign up from website</p>
+        <img src={logo} alt="Ortho Align Solution" className="mx-auto h-20 w-auto" />
+        <p className="mt-2 text-sm text-muted">{subtitle}</p>
       </div>
-      <div className="w-full max-w-md">{children}</div>
+      <div className={`w-full ${maxWidthClassName}`}>{children}</div>
     </div>
   );
 }

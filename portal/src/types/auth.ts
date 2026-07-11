@@ -21,6 +21,10 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+export interface MessageResponse {
+  message: string;
+}
+
 export interface RegisterPayload {
   email: string;
   password: string;

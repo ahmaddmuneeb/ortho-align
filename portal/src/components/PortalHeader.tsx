@@ -23,6 +23,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logoutAsync } from '../store/slices/authSlice';
 import type { AuthUser } from '../types/auth';
 import { Button } from './ui';
+import logoIcon from '../assets/logo-icon.png';
 
 type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 
@@ -199,9 +200,7 @@ export function PortalHeader({ subtitle }: PortalHeaderProps) {
               className="flex shrink-0 items-center gap-2.5"
               onClick={() => setMobileOpen(false)}
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white shadow-sm">
-                OA
-              </div>
+              <img src={logoIcon} alt="Ortho Align Solution" className="h-9 w-9 shrink-0 object-contain" />
               <div className="hidden min-w-0 sm:block">
                 <p className="truncate text-sm font-semibold text-ink">OrthoAlign</p>
                 <p className="truncate text-xs text-muted">
